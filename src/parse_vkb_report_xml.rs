@@ -568,16 +568,22 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_ReportFull_sample() {
+    fn test_parse_ReportFull_simplified() {
         let xml_str = include_str!("../tests/data/vkb_report_simplified.fp3");
 
         quick_xml::de::from_str::<VkbReport>(xml_str).unwrap();
     }
 
     #[test]
-    fn test_parse_ReportFull_sample2() {
-        let xml_str =
-            include_str!("/home/pratn/workspace/sc-keymap-rs/sc-keymap-rs/data/report_R.fp3");
+    fn test_parse_ReportFull_full_R() {
+        let xml_str = include_str!("../bindings/vkb_report_R.fp3");
+
+        quick_xml::de::from_str::<VkbReport>(xml_str).unwrap();
+    }
+
+    #[test]
+    fn test_parse_ReportFull_full_L() {
+        let xml_str = include_str!("../bindings/vkb_report_L.fp3");
 
         quick_xml::de::from_str::<VkbReport>(xml_str).unwrap();
     }
