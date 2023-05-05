@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 mod pdf_form;
-mod merge;
+mod pdf_merge;
 mod parse_keybind_xml;
 
 /// https://github.com/J-F-Liu/lopdf/blob/master/examples/extract_toc.rs
@@ -57,7 +57,7 @@ fn main() -> Result<(), Error> {
     // "Filling form fields"
 
     // TODO read multiple pdfs
-    merge::merge(pdf_paths.clone())?;
+    pdf_merge::merge(pdf_paths.clone())?;
 
     for pdf_path in pdf_paths {
         pdf_form::list_forms(&pdf_path);
