@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 
 use quick_xml::events::Event;
+use scraper::ElementRef;
 use scraper::Html;
 use scraper::Selector;
 use serde::Deserialize;
@@ -208,15 +209,23 @@ enum ButtonKind {
 enum PhysicalButtonKind {
     /// The standard, basic button with no SHIT, or anything particular
     /// VKB = "Button with momentary action"
-    Momentary,
-    /// Another kind of basic button
-    /// eg: "Joystick button : #51"
-    // TODO do we need to make the distinction with "Momentary"
-    Basic,
+    Momentary {
+        shift: Option<ShiftKind>,
+    },
     /// This is the wheel on the bottom right of the stick (one per stick)
     Encoder,
     Tempo(TempoKind),
-    Shift(ShiftKind),
+    /// The SHIFT1 = ALT button 1
+    Shift1,
+    /// The SHIFT2 = ALT button 2
+    Shift2,
+    /// "Point of view Switch"
+    /// eg "POV1  Up", "POV1  Left", etc
+    Pov {
+        direction: String,
+    },
+    /// "No defined function"
+    Undefined,
 }
 
 #[derive(PartialEq, Debug)]
@@ -226,16 +235,24 @@ enum TempoKind {
     Tempo1,
     /// Short+Long press
     /// "second line pulse length is equal to button depressing time"
-    Tempo2,
+    Tempo2 {
+        button_id_short: u8,
+        button_id_long: u8,
+    },
     /// Short+Long press+Double press
     Tempo3,
 }
 
 #[derive(PartialEq, Debug)]
 enum ShiftKind {
-    Shift1,
+    Shift1 {
+        button_id_shift1: u8,
+    },
     Shift2,
-    Shift12,
+    Shift12 {
+        button_id_shift1: u8,
+        button_id_shift2: u8,
+    },
 }
 
 /// Parse eg "#1 (E1) ", "#2  - Encoder 2/4", etc
@@ -259,6 +276,37 @@ struct ButtonIdAndInfo {
     info: Option<String>,
 }
 
+/// Get all the Text matching a given element sibling
+/// and apply some cleanup (remove new lines, blanks, etc)
+/// Return either:
+/// - only one string if there is only one (useful) line in the siblings
+/// - or 2 strings if there are two useful lines
+/// - or none at all
+///
+/// NOTE: the given "element" SHOULD be the first element in tree order b/c we only iterate forward("next_sibling")
+fn extract_text_next_siblings(element: &ElementRef) -> (Option<String>, Option<String>) {
+    let mut text_siblings = Vec::new();
+
+    // Iterate over the next siblings
+    let mut current = element.next_sibling();
+    while let Some(sibling) = current {
+        // if let NodeRef::Text(text) = sibling.value() {
+        if let Some(text) = sibling.value().as_text() {
+            let text = text.trim();
+            let text = text.replacen("\n", "", 1);
+            text_siblings.push(text);
+        }
+        current = sibling.next_sibling();
+    }
+
+    match &text_siblings[..] {
+        [] => (None, None),
+        [first] => (Some(first.to_string()), None),
+        [first, second] => (Some(first.to_string()), Some(second.to_string())),
+        _ => todo!(),
+    }
+}
+
 fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, VkbReportError> {
     // let lines: Vec<&str> = desc_xml_escaped.split("\r\n").collect();
     // let first_line = lines[0];
@@ -276,7 +324,7 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, Vk
     let b_nodes: Vec<_> = fragment.select(&b_selector).collect();
 
     // println!("b_nodes [{}] : {:?}", b_nodes.len(), b_nodes);
-    // for b_node in b_nodes {
+    // for b_node in b_nodes.iter() {
     //     println!("b_node : inner_html : {:#?}", b_node.inner_html());
     // }
 
@@ -287,6 +335,9 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, Vk
     // "<b>TEMPO </b>"
     // etc
     assert!(b_nodes.len() <= 2, "more b nodes than expected!");
+    let remaining_b_node = &b_nodes.get(1);
+    let texts = extract_text_next_siblings(&b_nodes[0]);
+
     // Now we have various cases:
     //
     // - NO "b" node, only text: eg
@@ -299,11 +350,91 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, Vk
     // - "b" node, NO text:
     //      "<b>#39 </b><b> No defined function</b>"
     //      "<b>#66 </b><b>- Button with momentary action</b>"
+    let remaining_b_node = match remaining_b_node {
+        Some(remaining_b_node) => remaining_b_node,
+        None => unimplemented!("SHOULD NOT be here, this is only for b3 field???"),
+    };
+
+    let remaining_b_node_inner_html = remaining_b_node.inner_html();
+    let kind = if remaining_b_node_inner_html.contains("TEMPO") {
+        let text = match texts {
+            (Some(text), None) => text,
+            _ => unimplemented!("TEMPO: SHOULD NOT be here!"),
+        };
+        if text.contains("Virtual button Short #") && text.contains("Virtual button Long #") {
+            let short_id = text
+                .split("Virtual button Short #")
+                .last()
+                .unwrap()
+                .split("Virtual button Long #")
+                .next()
+                .unwrap();
+            let long_id = text.split("Virtual button Long #").last().unwrap();
+            PhysicalButtonKind::Tempo(TempoKind::Tempo2 {
+                button_id_short: short_id.parse().unwrap(),
+                button_id_long: long_id.parse().unwrap(),
+            })
+        } else {
+            todo!()
+        }
+    } else if remaining_b_node_inner_html.contains("Encoder") {
+        PhysicalButtonKind::Encoder
+    } else if remaining_b_node_inner_html.contains("Button with momentary action") {
+        match texts {
+            (None, None) => PhysicalButtonKind::Momentary { shift: None },
+            (None, Some(_)) => unimplemented!(
+                "SHOULD NOT be here, SHOULD NOT be able to get a second txt without a first!"
+            ),
+            (Some(text), None) => {
+                if text.contains("Virtual button with SHIFT1 =")
+                    && text.contains("Virtual button with SHIFT2 =")
+                {
+                    let shift1_id = text
+                        .split("Virtual button with SHIFT1 = ")
+                        .last()
+                        .unwrap()
+                        .split("Virtual button with SHIFT2 = ")
+                        .next()
+                        .unwrap();
+                    let shift2_id = text.split("Virtual button with SHIFT2 = ").last().unwrap();
+                    PhysicalButtonKind::Momentary {
+                        shift: Some(ShiftKind::Shift12 {
+                            button_id_shift1: shift1_id.parse().unwrap(),
+                            button_id_shift2: shift2_id.parse().unwrap(),
+                        }),
+                    }
+                } else if text.contains("Virtual button with SHIFT1 =")
+                    && !text.contains("Virtual button with SHIFT2 =")
+                {
+                    let shift1_id = text.split("Virtual button with SHIFT1 = ").last().unwrap();
+                    PhysicalButtonKind::Momentary {
+                        shift: Some(ShiftKind::Shift1 {
+                            button_id_shift1: shift1_id.parse().unwrap(),
+                        }),
+                    }
+                } else {
+                    todo!()
+                }
+            }
+            (Some(_), Some(_)) => todo!(),
+        }
+    } else if remaining_b_node_inner_html.contains(" SHIFT1 ") {
+        PhysicalButtonKind::Shift1
+    } else if remaining_b_node_inner_html.contains("Point of view Switch") {
+        let direction = texts.1.unwrap().split(" ").last().unwrap().to_string();
+        PhysicalButtonKind::Pov { direction }
+    } else if remaining_b_node_inner_html.contains("No defined function") {
+        PhysicalButtonKind::Undefined
+    } else {
+        todo!("not TEMPO");
+    };
+
+    // else if remaining_b_node.is_some() && remaining_b_node.unwrap().parent().unwrap().s
 
     let button = Button {
         kind: ButtonKind::Physical {
-            id: todo!(),
-            kind: todo!(),
+            id: button_id_info.id,
+            kind,
         },
     };
 
@@ -483,7 +614,6 @@ mod tests {
         // "<b>#3 (E2) </b><b>- Button with momentary action</b>"
         // "<b>#4 </b><b>- Button with momentary action</b>"
         // "<b>#5 (F3) </b><b>TEMPO </b>\r\nVirtual button Short #5\r\nVirtual button Long #94"
-        // "<b>#5 </b> Joystick button : #51"
         // "<b>#9 (Fire 2-nd stage) </b><b>- Button with momentary action</b>"
         // "<font color=\"#000000\">Virtual button with SHIFT1 = 63\r\nVirtual button with SHIFT2 = 92"
         // "<b>#10 (Fire 1-st stage) </b><b>- Button with momentary action</b>\r\nVirtual button with SHIFT1 = 64\r\nVirtual button with SHIFT2 = 91"
@@ -508,11 +638,95 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 3,
-                        kind: PhysicalButtonKind::Momentary,
+                        kind: PhysicalButtonKind::Momentary{ shift: None },
+                    },
+                },
+            ),
+            (
+                "<b>#4 </b><b>- Button with momentary action</b>",
+                Button {
+                    kind: ButtonKind::Physical {
+                        id: 4,
+                        kind: PhysicalButtonKind::Momentary{ shift: None },
+                    },
+                },
+            ),
+            (
+                "<b>#5 (F3) </b><b>TEMPO </b>\r\nVirtual button Short #5\r\nVirtual button Long #94",
+                Button {
+                    kind: ButtonKind::Physical {
+                        id: 5,
+                        kind: PhysicalButtonKind::Tempo(TempoKind::Tempo2 { button_id_short: 5, button_id_long: 94 }),
+                    },
+                },
+            ),
+            (
+                "<b>#9 (Fire 2-nd stage) </b><b>- Button with momentary action</b>",
+                Button {
+                    kind: ButtonKind::Physical {
+                        id: 9,
+                        kind: PhysicalButtonKind::Momentary { shift: None },
+                    },
+                },
+            ),
+            (
+                "<b>#10 (Fire 1-st stage) </b><b>- Button with momentary action</b>\r\nVirtual button with SHIFT1 = 64\r\nVirtual button with SHIFT2 = 91",
+                Button {
+                    kind: ButtonKind::Physical {
+                        id: 10,
+                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift12 { button_id_shift1: 64, button_id_shift2: 91 }) },
+                    },
+                },
+            ),
+            (
+                "<b>#11 (D1) </b><b> SHIFT1 </b>",
+                Button {
+                    kind: ButtonKind::Physical {
+                        id: 11,
+                        kind: PhysicalButtonKind::Shift1,
+                    },
+                },
+            ),
+            (
+                "<b>#12 (A2) </b><b>- Button with momentary action</b>\r\nVirtual button with SHIFT1 = 13\r\nVirtual button with SHIFT2 = 90",
+                Button {
+                    kind: ButtonKind::Physical {
+                        id: 12,
+                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift12 { button_id_shift1: 13, button_id_shift2: 90 }) },
+                    },
+                },
+            ),
+            (
+                "<b>#18 (A1 down) </b> <b>Point of view Switch</b> POV1  Down",
+                Button {
+                    kind: ButtonKind::Physical {
+                        id: 18,
+                        kind: PhysicalButtonKind::Pov { direction: "Down".to_string() },
+                    },
+                },
+            ),
+            (
+                "<b>#35 (Rapid fire forward) </b><b>- Button with momentary action</b>\r\nVirtual button with SHIFT1 = 37",
+                Button {
+                    kind: ButtonKind::Physical {
+                        id: 35,
+                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift1 { button_id_shift1: 37 }) },
+                    },
+                },
+            ),
+            (
+                "<b>#37 </b><b> No defined function</b>",
+                Button {
+                    kind: ButtonKind::Physical {
+                        id: 37,
+                        kind: PhysicalButtonKind::Undefined,
                     },
                 },
             ),
         ];
+
+        // TODO handle // "<font color=\"#000000\">Virtual button with SHIFT1 = 63\r\nVirtual button with SHIFT2 = 92"
+        // This seem to mean we need to combine this b2 with the one from the previous page0?
 
         for (input, expected_result) in test_inputs_vs_expected_results {
             let button = parse_b2_button_desc_xml_escaped(input).unwrap();
