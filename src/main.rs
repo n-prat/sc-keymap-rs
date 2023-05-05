@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 mod parse_keybind_xml;
-mod parse_vkb_report_xml;
+mod vkb;
 // mod pdf_form;
 // mod pdf_merge;
 // mod pdf_parse;
@@ -72,7 +72,7 @@ fn main() -> Result<(), Error> {
 
     // pdf_parse::pdf_read(input_paths[0].clone().into(), "output.txt".into());
 
-    parse_vkb_report_xml::parse_report(input_paths[1].clone().into());
+    vkb::parse_report(input_paths[1].clone().into());
 
     Ok(())
 }
