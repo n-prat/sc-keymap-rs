@@ -30,6 +30,10 @@ ie if a clone a "4 way hats" with contains 4 separate IDs/labels matching the ke
 which means we CAN NOT bind it properly.
 Possibly could be done with Illustrator("Dynamic Symbols") but not Open Source nor Free...
 
+### VKB bindings export
+
+Use "save" not "export". You want a `.fp3` file which is machine readable, the `export as pdf` function is not!
+
 ### Known Issues
 
 #### Missing text

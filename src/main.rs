@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 mod parse_keybind_xml;
+mod parse_vkb_report_xml;
 mod pdf_form;
 mod pdf_merge;
 mod pdf_parse;
@@ -69,7 +70,9 @@ fn main() -> Result<(), Error> {
 
     // svg_parse::svg_parse(&input_paths[0], "merged.png".into());
 
-    pdf_parse::pdf_read("data/report_L.pdf".into(), "output.txt".into());
+    // pdf_parse::pdf_read(input_paths[0].clone().into(), "output.txt".into());
+
+    parse_vkb_report_xml::parse_report(input_paths[0].clone().into());
 
     Ok(())
 }
