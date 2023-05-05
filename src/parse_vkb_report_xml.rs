@@ -3,6 +3,8 @@
 use std::path::PathBuf;
 
 use quick_xml::events::Event;
+use scraper::Html;
+use scraper::Selector;
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -14,6 +16,8 @@ pub enum VkbReportError {
     InvalidHeader { expected: String, found: String },
     #[error("unknown xml error")]
     Unknown,
+    #[error("the xml desc `{0}` is not handled")]
+    UnexpectedXmlDesc(String),
 }
 
 /// Maps eg
@@ -42,6 +46,9 @@ struct B2 {
     t: String,
     #[serde(rename = "@h")]
     h: String,
+    /// NOTE: there is ONE instance of "b2" where this field is not there
+    /// in which case there is a additional field "g1"
+    /// Not sure what that is, so we ignore it for now.
     m7: Option<M7>,
 }
 
@@ -84,7 +91,7 @@ struct B3 {
     #[serde(rename = "@h")]
     h: String,
     m8: M8,
-    m9: M8,
+    m9: M9,
 }
 
 /// Intro segment, only on the first page0?
@@ -154,24 +161,135 @@ struct PreviewPages {
 /// </preparedreport>
 ///
 #[derive(Deserialize, Debug)]
-struct ReportFull {
+pub(crate) struct VkbReport {
     previewpages: PreviewPages,
 }
 
 ///
 // TODO remove feature "overlapped-lists" and add a wrapper for B2 + Optional<Vec<B3>>
-pub(crate) fn parse_report(xml_path: PathBuf) -> Result<(), VkbReportError> {
+pub(crate) fn parse_report(xml_path: PathBuf) -> Result<VkbReport, VkbReportError> {
     let xml_str = std::fs::read_to_string(xml_path).map_err(|_| VkbReportError::Unknown)?;
 
     // TODO
-    let xml_data: ReportFull = quick_xml::de::from_str(&xml_str).map_err(|err| {
+    let vkb_report: VkbReport = quick_xml::de::from_str(&xml_str).map_err(|err| {
         println!("report error: {:?}", err);
         VkbReportError::Unknown
     })?;
 
-    println!("report: {:#?}", xml_data);
+    println!("report: {:#?}", vkb_report);
 
-    Ok(())
+    Ok(vkb_report)
+}
+
+/// This is NOT from the xml, this is the end result.
+/// We construct the final "buttons" by parsing the "xml_desc" field eg:
+///
+/// <b>#6 </b> Joystick button : #52
+/// <b>#6 (F1) </b><b>TEMPO </b>\r\nVirtual button Short #6\r\nVirtual button Long #96
+/// etc
+#[derive(PartialEq, Debug)]
+struct Button {
+    kind: ButtonKind,
+}
+
+#[derive(PartialEq, Debug)]
+enum ButtonKind {
+    /// This matches a "b2" field in xml
+    /// To get the ID we need to parse the desc...
+    Physical { physical_button_id: u8 },
+    /// Virtual/Logical
+    /// This matches a "b3" field in xml
+    /// In this case the "m8" field directly contains the ID, no parsing needed.
+    /// The "m9" SHOULD also contain the same ID in the desc.
+    Virtual { virtual_button_id: u8 },
+}
+
+/// Parse "desc_xml_escaped" FIRST LINE eg:
+/// <b>#4 </b>
+/// <b>#5 (F3) </b><b>TEMPO </b>
+/// <b>#7 (F2) </b><b>TEMPO </b>
+/// <font color=\"#000000\">Virtual button with SHIFT1 = 63
+/// <b>#10 (Fire 1-st stage) </b><b>- Button with momentary action</b>
+/// <b>#12 (A2) </b><b>- Button with momentary action</b>
+/// <b>#13 (Ministick push) </b><b>Microstick Mode Switch </b>
+/// etc
+fn parse_desc_xml_first_line(first_line: &str) {}
+
+/// Parse eg "#1 (E1) ", "#2  - Encoder 2/4", etc
+/// Return:
+/// - ALWAYS a "Button ID" eg 1,2,etc
+/// - if applicable: "additional into" eg "(E1)", "Encoder 2/4", etc
+fn parse_inner_html_desc(inner_html_desc: &str) -> ButtonIdAndInfo {
+    assert!(inner_html_desc.starts_with("#"));
+    let (button_id_str, info_str) = inner_html_desc[1..].split_once(" ").unwrap();
+
+    ButtonIdAndInfo {
+        id: button_id_str.parse().unwrap(),
+        additional_info: Some(info_str.trim().to_string()),
+    }
+}
+
+#[derive(Debug, PartialEq)]
+struct ButtonIdAndInfo {
+    id: u8,
+    additional_info: Option<String>,
+}
+
+fn parse_desc_xml(desc_xml_escaped: &str) {
+    let fragment = Html::parse_fragment(desc_xml_escaped);
+    println!("parse_desc_xml fragment : {:#?}", fragment.tree);
+
+    for node in fragment.tree.nodes() {
+        println!("node : {:#?}", node);
+    }
+
+    // the selected inner_html should contain something like:
+    // "#1 (E1) ", "#2  - Encoder 2/4", etc
+    let b_selector = Selector::parse("b").unwrap();
+    let b_nodes: Vec<_> = fragment.select(&b_selector).collect();
+    println!("b_nodes [{}] : {:?}", b_nodes.len(), b_nodes);
+    for b_node in b_nodes {
+        println!("b_node : inner_html : {:#?}", b_node.inner_html());
+    }
+}
+
+fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, VkbReportError> {
+    // let lines: Vec<&str> = desc_xml_escaped.split("\r\n").collect();
+    // let first_line = lines[0];
+    parse_desc_xml(desc_xml_escaped);
+
+    let button = Button {
+        kind: ButtonKind::Physical {
+            physical_button_id: todo!(),
+        },
+    };
+
+    Ok(button)
+}
+
+fn parse_b3_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, VkbReportError> {
+    let button = Button {
+        kind: ButtonKind::Virtual {
+            virtual_button_id: todo!(),
+        },
+    };
+
+    Ok(button)
+}
+
+fn construct_button_from_xml(page_item: Page0Item) -> Result<Button, VkbReportError> {
+    match page_item {
+        Page0Item::b2(b2_xml) => match b2_xml.m7 {
+            Some(m7) => parse_b2_button_desc_xml_escaped(&m7.desc_xml_escaped),
+            None => Err(VkbReportError::UnexpectedXmlDesc(format!("{:?}", b2_xml))),
+        },
+        Page0Item::b3(b3_xml) => {
+            let button = parse_b3_button_desc_xml_escaped(&b3_xml.m9.desc_xml_escaped)?;
+            // TODO assert_eq!(button.id, b3_xml.m8.virtual_button_id);
+            Ok(button)
+        }
+        _ => unimplemented!("parse_button_xml SHOULD only be called with b2 or b3 field"),
+    }
 }
 
 #[cfg(test)]
@@ -281,7 +399,7 @@ mod tests {
     fn test_parse_ReportFull_sample() {
         let xml_str = include_str!("../tests/data/vkb_report_simplified.fp3");
 
-        quick_xml::de::from_str::<ReportFull>(xml_str).unwrap();
+        quick_xml::de::from_str::<VkbReport>(xml_str).unwrap();
     }
 
     #[test]
@@ -289,6 +407,58 @@ mod tests {
         let xml_str =
             include_str!("/home/pratn/workspace/sc-keymap-rs/sc-keymap-rs/data/report_R.fp3");
 
-        quick_xml::de::from_str::<ReportFull>(xml_str).unwrap();
+        quick_xml::de::from_str::<VkbReport>(xml_str).unwrap();
+    }
+
+    #[test]
+    fn test_parse_inner_html_desc() {
+        let test_inputs_vs_expected_results = vec![
+            (
+                "#1 (E1) ",
+                ButtonIdAndInfo {
+                    id: 1,
+                    additional_info: Some("(E1)".to_string()),
+                },
+            ),
+            (
+                "#2  - Encoder 2/4",
+                ButtonIdAndInfo {
+                    id: 2,
+                    additional_info: Some("- Encoder 2/4".to_string()),
+                },
+            ),
+        ];
+
+        for (input, expected_result) in test_inputs_vs_expected_results {
+            let button = parse_inner_html_desc(input);
+            assert_eq!(button, expected_result);
+        }
+    }
+
+    #[test]
+    fn test_construct_button_b2() {
+        let test_inputs_vs_expected_results = vec![
+            (
+                "<b>#1 (E1) </b> / <b>#2  - Encoder 2/4</b>\r\nVirtual buttons : #61 / #62",
+                Button {
+                    kind: ButtonKind::Physical {
+                        physical_button_id: 1,
+                    },
+                },
+            ),
+            (
+                "<b>#3 (E2) </b><b>- Button with momentary action</b>",
+                Button {
+                    kind: ButtonKind::Physical {
+                        physical_button_id: 3,
+                    },
+                },
+            ),
+        ];
+
+        for (input, expected_result) in test_inputs_vs_expected_results {
+            let button = parse_b2_button_desc_xml_escaped(input).unwrap();
+            assert_eq!(button, expected_result);
+        }
     }
 }
