@@ -271,8 +271,29 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, Vk
 }
 
 fn parse_b3_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, VkbError> {
+    let fragment = Html::parse_fragment(desc_xml_escaped);
+
+    // the selected inner_html should contain something like:
+    // "#1 (E1) ", "#2  - Encoder 2/4", etc
+    let b_selector = Selector::parse("b").unwrap();
+    let b_nodes: Vec<_> = fragment.select(&b_selector).collect();
+    assert_eq!(
+        b_nodes.len(),
+        1,
+        "b3 buttons SHOULD have only one <b> elem!"
+    );
+
+    // Only extract the ID from the FIRST "b" node
+    let button_id_info = extract_button_id_from_inner_html(&b_nodes[0].inner_html());
+    assert!(
+        button_id_info.info.is_none() || button_id_info.info.unwrap_or_default().is_empty(),
+        "b3 SHOULD NOT have info!"
+    );
+
     let button = Button {
-        kind: ButtonKind::Virtual { id: todo!() },
+        kind: ButtonKind::Virtual {
+            id: button_id_info.id,
+        },
     };
 
     Ok(button)
@@ -323,7 +344,7 @@ mod tests {
     }
 
     #[test]
-    fn test_construct_button_b2() {
+    fn test_parse_b2_button_desc_xml_escaped() {
         // Here are all (?) the possible cases for a "b2" desc field:
         // "<b>#1 (E1) </b> / <b>#2  - Encoder 2/4</b>\r\nVirtual buttons : #61 / #62"
         // "<b>#3 (E2) </b><b>- Button with momentary action</b>"
@@ -445,6 +466,21 @@ mod tests {
 
         for (input, expected_result) in test_inputs_vs_expected_results {
             let button = parse_b2_button_desc_xml_escaped(input).unwrap();
+            assert_eq!(button, expected_result);
+        }
+    }
+
+    #[test]
+    fn test_parse_b3_button_desc_xml_escaped() {
+        let test_inputs_vs_expected_results = vec![(
+            r#"<b>#61 </b> Joystick button : #61"#,
+            Button {
+                kind: ButtonKind::Virtual { id: 61 },
+            },
+        )];
+
+        for (input, expected_result) in test_inputs_vs_expected_results {
+            let button = parse_b3_button_desc_xml_escaped(input).unwrap();
             assert_eq!(button, expected_result);
         }
     }
