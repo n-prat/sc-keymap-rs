@@ -6,6 +6,7 @@ use std::time::Instant;
 mod parse_keybind_xml;
 mod pdf_form;
 mod pdf_merge;
+mod pdf_parse;
 mod svg_parse;
 
 /// https://github.com/J-F-Liu/lopdf/blob/master/examples/extract_toc.rs
@@ -66,7 +67,9 @@ fn main() -> Result<(), Error> {
 
     parse_keybind_xml::parse_keybind("./data/layout_vkb_custom_v1_exported.xml".into()).unwrap();
 
-    svg_parse::svg_parse(&input_paths[0], "merged.png".into());
+    // svg_parse::svg_parse(&input_paths[0], "merged.png".into());
+
+    pdf_parse::pdf_read("data/report_L.pdf".into(), "output.txt".into());
 
     Ok(())
 }

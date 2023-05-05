@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -41,7 +42,45 @@ pub(crate) fn svg_parse(input_svg_path: &PathBuf, output_png_path: PathBuf) {
     //
     // let mut current_group_bboxes = vec![];
     let mut all_group_bboxes = vec![];
-    for node in tree.root.descendants() {
+
+    // We want to keep a node if it is:
+    // - a leaf(ie it has no children), but IFF its parent was not already selected
+    //   Usually this is a basic button, not part of a group.
+    // - a group, if its children are in the previous case
+    //   Usually this is a standard group, whose children are final leaves.
+    //   In this case we DO NOT want the children, but only their parent!
+    let leaf_nodes: Vec<_> = tree
+        .root
+        .descendants()
+        .filter(|n| !n.has_children())
+        .collect();
+    let parent_leaf_nodes: Vec<_> = tree
+        .root
+        .descendants()
+        // .filter(|n| n.has_children() && n.descendants().all(|child| leaf_nodes.contains(&child)))
+        .filter(|n| n.descendants().all(|child| leaf_nodes.contains(&child)))
+        .collect();
+    let parent_nodes: Vec<_> = tree
+        .root
+        .descendants()
+        .filter(|n| n.has_children())
+        .collect();
+    let final_leaf_nodes: Vec<_> = tree
+        .root
+        .descendants()
+        .filter(|n| !n.has_children() && n.parent().unwrap().children().count() == 1)
+        .collect();
+    // let group_nodes: Vec<_> = tree
+    //     .root
+    //     .descendants()
+    //     .filter(|n| n.has_children() && n.parent().unwrap().children().count() > 1)
+    //     .collect();
+    let parent_nodes2: Vec<_> = leaf_nodes
+        .iter()
+        .filter(|n| n.parent().unwrap().children().count() == 1)
+        .collect();
+
+    for node in tree.root.descendants().filter(|n| n.has_children()) {
         if let Some(bbox) = node.calculate_bbox().and_then(|r| r.to_rect()) {
             println!("NodeKind calculate_bbox : {}", bbox);
             // bboxes.push(bbox);
