@@ -1,6 +1,7 @@
 /target
 
 /*.pdf
+/*.png
 /data/
 
 /.vscode/
