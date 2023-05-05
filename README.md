@@ -11,7 +11,10 @@ directly updated by reading the exported `layout.xml`.
   ~~- the pdf(odg, or other image format) MUST ONLY contain forms; each form NAME(NOT "label") MUST be a button/axis eg `button1`~~
 - ALTERNATIVE/WIP Prepare a `svg`
   - the joystick image should be in a separate layer, alone; no buttons, labels, text fields, connectors, etc
-  - on another layer: draw text field directly on top of the corresponding physical buttons
+  - TODO on another layer: draw text field directly on top of the corresponding physical buttons
+    - the text field `id` MUST be eg `button123`
+    - the text field `label` does not really matter, but it it easier if it is the same as `id`
+  - NOTE: for now the layers and visibility of the buttons/texts do not matter
 - an exported `xml` eg `layout_vkb_custom_v1_exported.xml` from Star Citizen containing the keybinds
 - example: if the keybind in `xml` is `js1_button5`, the `pdf` MUST have a label `button5`(or `js1_button5`)
 
@@ -24,3 +27,15 @@ Yes `svg` has cloning, but a clone is a single element.
 ie if a clone a "4 way hats" with contains 4 separate IDs/labels matching the keybinds -> we end up we a single `use`
 which means we CAN NOT bind it properly.
 Possibly could be done with Illustrator("Dynamic Symbols") but not Open Source nor Free...
+
+### Known Issues
+
+#### Missing text
+
+If no text is rendered:
+
+- download and decompress from eg https://github.com/RazrFalcon/resvg/releases
+- `./resvg --list-fonts path_to_a.svg aaa.png`
+  - It should display a bunch of errors like `Warning (in usvg_text_layout:658): No match for 'Times New Roman' font-famiy.`
+  - It should also display a bunch of info at the start like `/usr/share/fonts/gnu-free/FreeSerifBold.otf: 'FreeSerif (English, United States)', 0, Normal, 700, Normal`
+  - use eg `FreeSerif` as font-family option `resvg::usvg::Options.font_family`
