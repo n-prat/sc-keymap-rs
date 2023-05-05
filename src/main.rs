@@ -3,6 +3,7 @@ use std::io::Error;
 use std::path::PathBuf;
 use std::time::Instant;
 
+mod edit;
 mod merge;
 
 /// https://github.com/J-F-Liu/lopdf/blob/master/examples/extract_toc.rs
@@ -38,7 +39,7 @@ fn main() -> Result<(), Error> {
     let args = Args::parse_args();
 
     let start_time = Instant::now();
-    let pdf_paths = args
+    let pdf_paths: Vec<_> = args
         .pdf_paths
         .iter()
         .map(|pdf_path| {
@@ -55,5 +56,11 @@ fn main() -> Result<(), Error> {
     // "Filling form fields"
 
     // TODO read multiple pdfs
-    merge::merge(pdf_paths)
+    merge::merge(pdf_paths.clone())?;
+
+    for pdf_path in pdf_paths {
+        edit::list_forms(&pdf_path);
+    }
+
+    Ok(())
 }
