@@ -66,13 +66,13 @@ fn main() -> Result<(), Error> {
     //     pdf_form::list_forms(&pdf_path);
     // }
 
-    parse_keybind_xml::parse_keybind("./data/layout_vkb_custom_v1_exported.xml".into()).unwrap();
+    parse_keybind_xml::parse_keybind(input_paths[0].clone().into()).unwrap();
 
     // svg_parse::svg_parse(&input_paths[0], "merged.png".into());
 
     // pdf_parse::pdf_read(input_paths[0].clone().into(), "output.txt".into());
 
-    parse_vkb_report_xml::parse_report(input_paths[0].clone().into());
+    parse_vkb_report_xml::parse_report(input_paths[1].clone().into());
 
     Ok(())
 }
