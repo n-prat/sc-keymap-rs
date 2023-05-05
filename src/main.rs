@@ -3,7 +3,7 @@ use std::io::Error;
 use std::path::PathBuf;
 use std::time::Instant;
 
-mod edit;
+mod pdf_form;
 mod merge;
 mod parse_keybind_xml;
 
@@ -60,7 +60,7 @@ fn main() -> Result<(), Error> {
     merge::merge(pdf_paths.clone())?;
 
     for pdf_path in pdf_paths {
-        edit::list_forms(&pdf_path);
+        pdf_form::list_forms(&pdf_path);
     }
 
     parse_keybind_xml::parse_keybind("./data/layout_vkb_custom_v1_exported.xml".into());
