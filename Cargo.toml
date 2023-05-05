@@ -11,5 +11,7 @@ shellexpand = "3.0"
 lopdf = "0.30.0"
 thiserror = "1.0"
 pdf = "0.8.1"
+quick-xml = { version = "0.28.2", features = ["serialize"] }
+serde = { version = "1.0.160", features = ["derive"] }
 # pdf_form: not updated; and apparently does not work with recent "lopdf"
 # pdf_form = { git = "https://github.com/jsandler18/pdf_form.git", version = "0.4.0" }

@@ -5,6 +5,7 @@ use std::time::Instant;
 
 mod edit;
 mod merge;
+mod parse_keybind_xml;
 
 /// https://github.com/J-F-Liu/lopdf/blob/master/examples/extract_toc.rs
 ///
@@ -61,6 +62,8 @@ fn main() -> Result<(), Error> {
     for pdf_path in pdf_paths {
         edit::list_forms(&pdf_path);
     }
+
+    parse_keybind_xml::parse_keybind("./data/layout_vkb_custom_v1_exported.xml".into());
 
     Ok(())
 }

@@ -1,0 +1,35 @@
+<ActionMaps version="1" optionsVersion="2" rebindVersion="2" profileName="vkb_custom_v1">
+    <CustomisationUIHeader label="vkb_custom_v1" description="" image="">
+        <devices>
+            <keyboard instance="1" />
+            <mouse instance="1" />
+            <joystick instance="1" />
+            <joystick instance="2" />
+        </devices>
+        <categories>
+            <category label="@ui_CCSeatGeneral" />
+        </categories>
+    </CustomisationUIHeader>
+    <deviceoptions name=" VKBsim Gladiator EVO  L    {0201231D-0000-0000-0000-504944564944}">
+        <option input="x" deadzone="0" />
+    </deviceoptions>
+    <deviceoptions name=" VKBsim Gladiator EVO  R    {0200231D-0000-0000-0000-504944564944}">
+        <option input="x" deadzone="0" />
+    </deviceoptions>
+    <options type="keyboard" instance="1" Product="Keyboard  {6F1D2B61-D5A0-11CF-BFC7-444553540000}" />
+    <options type="joystick" instance="1"
+        Product=" VKBsim Gladiator EVO  R    {0200231D-0000-0000-0000-504944564944}">
+        <flight_move_pitch exponent="1.2" />
+    </options>
+    <options type="joystick" instance="2"
+        Product=" VKBsim Gladiator EVO  L    {0201231D-0000-0000-0000-504944564944}" />
+    <modifiers />
+    <actionmap name="player_input_optical_tracking">
+        <action name="foip_pushtotalk">
+            <rebind input="kb1_capslock" />
+        </action>
+        <action name="foip_pushtotalk_proximity">
+            <rebind input="kb1_lalt+capslock" />
+        </action>
+    </actionmap>
+</ActionMaps>
