@@ -196,71 +196,114 @@ struct Button {
 enum ButtonKind {
     /// This matches a "b2" field in xml
     /// To get the ID we need to parse the desc...
-    Physical { physical_button_id: u8 },
+    Physical { id: u8, kind: PhysicalButtonKind },
     /// Virtual/Logical
     /// This matches a "b3" field in xml
     /// In this case the "m8" field directly contains the ID, no parsing needed.
     /// The "m9" SHOULD also contain the same ID in the desc.
-    Virtual { virtual_button_id: u8 },
+    Virtual { id: u8 },
 }
 
-/// Parse "desc_xml_escaped" FIRST LINE eg:
-/// <b>#4 </b>
-/// <b>#5 (F3) </b><b>TEMPO </b>
-/// <b>#7 (F2) </b><b>TEMPO </b>
-/// <font color=\"#000000\">Virtual button with SHIFT1 = 63
-/// <b>#10 (Fire 1-st stage) </b><b>- Button with momentary action</b>
-/// <b>#12 (A2) </b><b>- Button with momentary action</b>
-/// <b>#13 (Ministick push) </b><b>Microstick Mode Switch </b>
-/// etc
-fn parse_desc_xml_first_line(first_line: &str) {}
+#[derive(PartialEq, Debug)]
+enum PhysicalButtonKind {
+    /// The standard, basic button with no SHIT, or anything particular
+    /// VKB = "Button with momentary action"
+    Momentary,
+    /// Another kind of basic button
+    /// eg: "Joystick button : #51"
+    // TODO do we need to make the distinction with "Momentary"
+    Basic,
+    /// This is the wheel on the bottom right of the stick (one per stick)
+    Encoder,
+    Tempo(TempoKind),
+    Shift(ShiftKind),
+}
+
+#[derive(PartialEq, Debug)]
+enum TempoKind {
+    /// Short+Long press
+    /// "second line pulse length is equal to T_Tgl value in no matter to real depressing time"
+    Tempo1,
+    /// Short+Long press
+    /// "second line pulse length is equal to button depressing time"
+    Tempo2,
+    /// Short+Long press+Double press
+    Tempo3,
+}
+
+#[derive(PartialEq, Debug)]
+enum ShiftKind {
+    Shift1,
+    Shift2,
+    Shift12,
+}
 
 /// Parse eg "#1 (E1) ", "#2  - Encoder 2/4", etc
+/// SHOULD be called with the FIRST "b" node of the desc!
 /// Return:
 /// - ALWAYS a "Button ID" eg 1,2,etc
 /// - if applicable: "additional into" eg "(E1)", "Encoder 2/4", etc
-fn parse_inner_html_desc(inner_html_desc: &str) -> ButtonIdAndInfo {
+fn extract_button_id_from_inner_html(inner_html_desc: &str) -> ButtonIdAndInfo {
     assert!(inner_html_desc.starts_with("#"));
     let (button_id_str, info_str) = inner_html_desc[1..].split_once(" ").unwrap();
 
     ButtonIdAndInfo {
         id: button_id_str.parse().unwrap(),
-        additional_info: Some(info_str.trim().to_string()),
+        info: Some(info_str.trim().to_string()),
     }
 }
 
 #[derive(Debug, PartialEq)]
 struct ButtonIdAndInfo {
     id: u8,
-    additional_info: Option<String>,
-}
-
-fn parse_desc_xml(desc_xml_escaped: &str) {
-    let fragment = Html::parse_fragment(desc_xml_escaped);
-    println!("parse_desc_xml fragment : {:#?}", fragment.tree);
-
-    for node in fragment.tree.nodes() {
-        println!("node : {:#?}", node);
-    }
-
-    // the selected inner_html should contain something like:
-    // "#1 (E1) ", "#2  - Encoder 2/4", etc
-    let b_selector = Selector::parse("b").unwrap();
-    let b_nodes: Vec<_> = fragment.select(&b_selector).collect();
-    println!("b_nodes [{}] : {:?}", b_nodes.len(), b_nodes);
-    for b_node in b_nodes {
-        println!("b_node : inner_html : {:#?}", b_node.inner_html());
-    }
+    info: Option<String>,
 }
 
 fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, VkbReportError> {
     // let lines: Vec<&str> = desc_xml_escaped.split("\r\n").collect();
     // let first_line = lines[0];
-    parse_desc_xml(desc_xml_escaped);
+
+    let fragment = Html::parse_fragment(desc_xml_escaped);
+
+    // println!("parse_desc_xml fragment : {:#?}", fragment.tree);
+    // for node in fragment.tree.nodes() {
+    //     println!("node : {:#?}", node);
+    // }
+
+    // the selected inner_html should contain something like:
+    // "#1 (E1) ", "#2  - Encoder 2/4", etc
+    let b_selector = Selector::parse("b").unwrap();
+    let b_nodes: Vec<_> = fragment.select(&b_selector).collect();
+
+    // println!("b_nodes [{}] : {:?}", b_nodes.len(), b_nodes);
+    // for b_node in b_nodes {
+    //     println!("b_node : inner_html : {:#?}", b_node.inner_html());
+    // }
+
+    // Only extract the ID from the FIRST "b" node
+    let button_id_info = extract_button_id_from_inner_html(&b_nodes[0].inner_html());
+    // IF there are more "b" nodes, they contains only additional info like:
+    // "<b>- Button with momentary action</b>"
+    // "<b>TEMPO </b>"
+    // etc
+    assert!(b_nodes.len() <= 2, "more b nodes than expected!");
+    // Now we have various cases:
+    //
+    // - NO "b" node, only text: eg
+    //      "Joystick button : #3"
+    // - "b" node AND text: eg
+    //      "<b>Microstick Mode Switch </b>\r\n Switch Mode:"
+    //      "<b>- Button with momentary action</b>\r\nVirtual button with SHIFT1 = 50"
+    //      "<b>Point of view Switch</b> POV1  Down"
+    //      " / <b>#2  - Encoder 2/4</b>\r\nVirtual buttons : #61 / #62"
+    // - "b" node, NO text:
+    //      "<b>#39 </b><b> No defined function</b>"
+    //      "<b>#66 </b><b>- Button with momentary action</b>"
 
     let button = Button {
         kind: ButtonKind::Physical {
-            physical_button_id: todo!(),
+            id: todo!(),
+            kind: todo!(),
         },
     };
 
@@ -269,9 +312,7 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, Vk
 
 fn parse_b3_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, VkbReportError> {
     let button = Button {
-        kind: ButtonKind::Virtual {
-            virtual_button_id: todo!(),
-        },
+        kind: ButtonKind::Virtual { id: todo!() },
     };
 
     Ok(button)
@@ -411,38 +452,54 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_inner_html_desc() {
+    fn test_extract_button_id_from_inner_html() {
         let test_inputs_vs_expected_results = vec![
             (
                 "#1 (E1) ",
                 ButtonIdAndInfo {
                     id: 1,
-                    additional_info: Some("(E1)".to_string()),
+                    info: Some("(E1)".to_string()),
                 },
             ),
             (
                 "#2  - Encoder 2/4",
                 ButtonIdAndInfo {
                     id: 2,
-                    additional_info: Some("- Encoder 2/4".to_string()),
+                    info: Some("- Encoder 2/4".to_string()),
                 },
             ),
         ];
 
         for (input, expected_result) in test_inputs_vs_expected_results {
-            let button = parse_inner_html_desc(input);
+            let button = extract_button_id_from_inner_html(input);
             assert_eq!(button, expected_result);
         }
     }
 
     #[test]
     fn test_construct_button_b2() {
+        // Here are all (?) the possible cases for a "b2" desc field:
+        // "<b>#1 (E1) </b> / <b>#2  - Encoder 2/4</b>\r\nVirtual buttons : #61 / #62"
+        // "<b>#3 (E2) </b><b>- Button with momentary action</b>"
+        // "<b>#4 </b><b>- Button with momentary action</b>"
+        // "<b>#5 (F3) </b><b>TEMPO </b>\r\nVirtual button Short #5\r\nVirtual button Long #94"
+        // "<b>#5 </b> Joystick button : #51"
+        // "<b>#9 (Fire 2-nd stage) </b><b>- Button with momentary action</b>"
+        // "<font color=\"#000000\">Virtual button with SHIFT1 = 63\r\nVirtual button with SHIFT2 = 92"
+        // "<b>#10 (Fire 1-st stage) </b><b>- Button with momentary action</b>\r\nVirtual button with SHIFT1 = 64\r\nVirtual button with SHIFT2 = 91"
+        // "<b>#11 (D1) </b><b> SHIFT1 </b>"
+        // "<b>#12 (A2) </b><b>- Button with momentary action</b>\r\nVirtual button with SHIFT1 = 13\r\nVirtual button with SHIFT2 = 90"
+        // "<b>#18 (A1 down) </b> <b>Point of view Switch</b> POV1  Down"
+        // "<b>#35 (Rapid fire forward) </b><b>- Button with momentary action</b>\r\nVirtual button with SHIFT1 = 37"
+        // "<b>#37 </b><b> No defined function</b>"
+        // ""
         let test_inputs_vs_expected_results = vec![
             (
                 "<b>#1 (E1) </b> / <b>#2  - Encoder 2/4</b>\r\nVirtual buttons : #61 / #62",
                 Button {
                     kind: ButtonKind::Physical {
-                        physical_button_id: 1,
+                        id: 1,
+                        kind: PhysicalButtonKind::Encoder,
                     },
                 },
             ),
@@ -450,7 +507,8 @@ mod tests {
                 "<b>#3 (E2) </b><b>- Button with momentary action</b>",
                 Button {
                     kind: ButtonKind::Physical {
-                        physical_button_id: 3,
+                        id: 3,
+                        kind: PhysicalButtonKind::Momentary,
                     },
                 },
             ),
