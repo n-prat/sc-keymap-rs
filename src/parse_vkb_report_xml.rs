@@ -38,7 +38,11 @@ struct M7 {
 /// "p2" is an image: <p2 name="Page0.Image1" />
 #[derive(Deserialize, Debug)]
 struct B2 {
-    m7: M7,
+    #[serde(rename = "@t")]
+    t: String,
+    #[serde(rename = "@h")]
+    h: String,
+    m7: Option<M7>,
 }
 
 /// Maps the M3 child struct Virtual Button ID ("VBN" in VKB terminology)
@@ -75,6 +79,10 @@ struct M9 {
 /// - "m9": <m9 name="Page0.Decsription2" /> -> description field, same as "m7" for "b2" struct
 #[derive(Deserialize, Debug)]
 struct B3 {
+    #[serde(rename = "@t")]
+    t: String,
+    #[serde(rename = "@h")]
+    h: String,
     m8: M8,
     m9: M8,
 }
@@ -89,8 +97,9 @@ struct B3 {
 /// </page0>
 #[derive(Deserialize, Debug)]
 struct Page0 {
-    b2: Vec<B2>,
-    b3: Vec<B3>,
+    // Option b/c the last page only has b6,b4,b5
+    b2: Option<Vec<B2>>,
+    b3: Option<Vec<B3>>,
 }
 
 /// <previewpages>Page0,Page0,...</previewpages>
@@ -133,10 +142,12 @@ pub(crate) fn parse_report(xml_path: PathBuf) -> Result<(), VkbReportError> {
     let xml_str = std::fs::read_to_string(xml_path).map_err(|_| VkbReportError::Unknown)?;
 
     // TODO
-    let xml_data: ReportFull =
-        quick_xml::de::from_str(&xml_str).map_err(|_| VkbReportError::Unknown)?;
+    let xml_data: ReportFull = quick_xml::de::from_str(&xml_str).map_err(|err| {
+        println!("report error: {:?}", err);
+        VkbReportError::Unknown
+    })?;
 
-    println!("report: {:?}", xml_data);
+    println!("report: {:#?}", xml_data);
 
     Ok(())
 }
@@ -247,6 +258,14 @@ mod tests {
     #[test]
     fn test_parse_ReportFull_sample() {
         let xml_str = include_str!("../tests/data/vkb_report_simplified.fp3");
+
+        quick_xml::de::from_str::<ReportFull>(xml_str).unwrap();
+    }
+
+    #[test]
+    fn test_parse_ReportFull_sample2() {
+        let xml_str =
+            include_str!("/home/pratn/workspace/sc-keymap-rs/sc-keymap-rs/data/report_R.fp3");
 
         quick_xml::de::from_str::<ReportFull>(xml_str).unwrap();
     }
