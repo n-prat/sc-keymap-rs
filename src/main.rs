@@ -5,10 +5,10 @@ use std::time::Instant;
 
 mod parse_keybind_xml;
 mod parse_vkb_report_xml;
-mod pdf_form;
-mod pdf_merge;
-mod pdf_parse;
-mod svg_parse;
+// mod pdf_form;
+// mod pdf_merge;
+// mod pdf_parse;
+// mod svg_parse;
 
 /// https://github.com/J-F-Liu/lopdf/blob/master/examples/extract_toc.rs
 ///

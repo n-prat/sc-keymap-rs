@@ -8,14 +8,14 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
 shellexpand = "3.0"
-lopdf = { version = "0.30.0", features = ["serde"] }
+# lopdf = { version = "0.30.0", features = ["serde"] }
 thiserror = "1.0"
-pdf = "0.8.1"
+# pdf = "0.8.1"
 quick-xml = { version = "0.28.2", features = ["serialize", "overlapped-lists"] }
 serde = { version = "1.0.160", features = ["derive"] }
-resvg = "0.32.0"
+# resvg = "0.32.0"
 serde_json = "1.0.96"
-rayon = "1.7.0"
+# rayon = "1.7.0"
 scraper = "0.16.0"
 # pdf_form: not updated; and apparently does not work with recent "lopdf"
 # pdf_form = { git = "https://github.com/jsandler18/pdf_form.git", version = "0.4.0" }
