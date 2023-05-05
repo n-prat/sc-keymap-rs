@@ -9,6 +9,8 @@ use scraper::Selector;
 use serde::Deserialize;
 
 use super::vkb_xml::Page0Item;
+use super::vkb_xml::B2;
+use super::vkb_xml::B3;
 use super::VkbError;
 
 /// This is NOT from the xml, this is the end result.
@@ -20,6 +22,15 @@ use super::VkbError;
 #[derive(PartialEq, Debug)]
 struct Button {
     kind: ButtonKind,
+}
+
+impl Button {
+    pub(super) fn get_id(&self) -> u8 {
+        match &self.kind {
+            ButtonKind::Physical { id, kind } => *id,
+            ButtonKind::Virtual { id } => *id,
+        }
+    }
 }
 
 #[derive(PartialEq, Debug)]
@@ -299,18 +310,57 @@ fn parse_b3_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, Vk
     Ok(button)
 }
 
-fn construct_button_from_xml(page_item: Page0Item) -> Result<Button, VkbError> {
-    match page_item {
-        Page0Item::b2(b2_xml) => match b2_xml.m7 {
+/// Try to build a Button(Physical) from a B2 xml field
+impl TryFrom<B2> for Button {
+    type Error = VkbError;
+
+    fn try_from(b2_xml: B2) -> Result<Self, Self::Error> {
+        let button = match &b2_xml.m7 {
             Some(m7) => parse_b2_button_desc_xml_escaped(&m7.desc_xml_escaped),
-            None => Err(VkbError::UnexpectedXmlDesc(format!("{:?}", b2_xml))),
-        },
-        Page0Item::b3(b3_xml) => {
-            let button = parse_b3_button_desc_xml_escaped(&b3_xml.m9.desc_xml_escaped)?;
-            // TODO assert_eq!(button.id, b3_xml.m8.virtual_button_id);
-            Ok(button)
+            None => Err(VkbError::UnexpectedXmlDesc(format!(
+                "missing m7 field: {:?}",
+                b2_xml
+            ))),
+        }?;
+
+        // CHECK: the "m5" field SHOULD match the parsed button ID
+        match &b2_xml.m5 {
+            Some(m5) => {
+                if m5.physical_button_id.parse::<u8>().unwrap() != button.get_id() {
+                    return Err(VkbError::UnexpectedXmlDesc(format!(
+                        "m5 field value does not match: {:?}",
+                        b2_xml
+                    )));
+                }
+            }
+            None => {
+                return Err(VkbError::UnexpectedXmlDesc(format!(
+                    "missing m5 field value: {:?}",
+                    b2_xml
+                )))
+            }
+        };
+
+        Ok(button)
+    }
+}
+
+/// Try to build a Button(Virtual) from a B3 xml field
+impl TryFrom<B3> for Button {
+    type Error = VkbError;
+
+    fn try_from(b3_xml: B3) -> Result<Self, Self::Error> {
+        let button = parse_b3_button_desc_xml_escaped(&b3_xml.m9.desc_xml_escaped)?;
+
+        // CHECK: the "m8" field SHOULD match the parsed button ID
+        if b3_xml.m8.virtual_button_id.parse::<u8>().unwrap() != button.get_id() {
+            return Err(VkbError::UnexpectedXmlDesc(format!(
+                "m8 field value does not match: {:?}",
+                b3_xml
+            )));
         }
-        _ => unimplemented!("parse_button_xml SHOULD only be called with b2 or b3 field"),
+
+        Ok(button)
     }
 }
 

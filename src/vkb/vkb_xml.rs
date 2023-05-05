@@ -27,10 +27,10 @@ pub(super) struct M7 {
 /// and is "Page0.LineN" which would seem to indicate this is only for ordering
 /// BUT it maps nicely to the "physical button ID"???
 #[derive(Deserialize, Debug)]
-struct M5 {
+pub(super) struct M5 {
     /// This is the description; xml escaped!
     #[serde(rename = "@u")]
-    physical_button_id: String,
+    pub(super) physical_button_id: String,
 }
 
 /// Maps eg
@@ -51,17 +51,17 @@ pub(super) struct B2 {
     /// The fields below SHOULD always be there, but sometimes a struct is split
     /// onto two pages
     /// grep for "<b2 t="1006,65661" h="8,11023377999998">" and "<b2 t="990,09462" h="34,15801">"
-    m5: Option<M5>,
+    pub(super) m5: Option<M5>,
     pub(super) m7: Option<M7>,
 }
 
 /// Maps the M3 child struct Virtual Button ID ("VBN" in VKB terminology)
 /// <m8 u="95" />
 #[derive(Deserialize, Debug)]
-struct M8 {
+pub(super) struct M8 {
     /// This is the description; xml escaped!
     #[serde(rename = "@u")]
-    virtual_button_id: String,
+    pub(super) virtual_button_id: String,
 }
 
 /// Maps the description for the M3 child struct
@@ -93,7 +93,7 @@ pub(super) struct B3 {
     t: String,
     #[serde(rename = "@h")]
     h: String,
-    m8: M8,
+    pub(super) m8: M8,
     pub(super) m9: M9,
 }
 
