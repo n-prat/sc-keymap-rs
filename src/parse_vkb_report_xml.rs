@@ -87,6 +87,28 @@ struct B3 {
     m9: M8,
 }
 
+/// Intro segment, only on the first page0?
+type B1 = ();
+/// also only on the first page0; not sure what that is: "<TfrxNullBand Height="1046,92981" Left="0" Top="0" Width="718,1107" l="0" t="0" />"
+type TfrxNullBand = ();
+/// summary; only on the last page
+type B4 = ();
+type B5 = ();
+type B6 = ();
+
+/// To preserve the relative order fo b2/b3 we need an wrapper struct
+/// thanks phind.com
+#[derive(Deserialize, Debug)]
+enum Page0Item {
+    b1(B1),
+    TfrxNullBand(TfrxNullBand),
+    b2(B2),
+    b3(B3),
+    b4(B4),
+    b5(B5),
+    b6(B6),
+}
+
 /// Maps the per-page structure of B2/B3
 /// <page0>
 ///     <b2...>
@@ -97,9 +119,9 @@ struct B3 {
 /// </page0>
 #[derive(Deserialize, Debug)]
 struct Page0 {
-    // Option b/c the last page only has b6,b4,b5
-    b2: Option<Vec<B2>>,
-    b3: Option<Vec<B3>>,
+    /// Option b/c the last page only has b6,b4,b5
+    #[serde(rename = "$value")]
+    b: Option<Vec<Page0Item>>,
 }
 
 /// <previewpages>Page0,Page0,...</previewpages>
