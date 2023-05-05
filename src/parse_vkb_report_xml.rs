@@ -32,6 +32,17 @@ struct M7 {
     desc_xml_escaped: String,
 }
 
+/// Maps the M5 child struct of "b2"
+/// <m5 u="29" />
+/// and is "Page0.LineN" which would seem to indicate this is only for ordering
+/// BUT it maps nicely to the "physical button ID"???
+#[derive(Deserialize, Debug)]
+struct M5 {
+    /// This is the description; xml escaped!
+    #[serde(rename = "@u")]
+    physical_button_id: String,
+}
+
 /// Maps eg
 /// <b2 t="22,67718" h="32,12105">
 ///     <p2 t="0" w="113" h="22" ImageIndex="23" Transparent="1" />
@@ -47,9 +58,10 @@ struct B2 {
     t: String,
     #[serde(rename = "@h")]
     h: String,
-    /// NOTE: there is ONE instance of "b2" where this field is not there
-    /// in which case there is a additional field "g1"
-    /// Not sure what that is, so we ignore it for now.
+    /// The fields below SHOULD always be there, but sometimes a struct is split
+    /// onto two pages
+    /// grep for "<b2 t="1006,65661" h="8,11023377999998">" and "<b2 t="990,09462" h="34,15801">"
+    m5: Option<M5>,
     m7: Option<M7>,
 }
 
