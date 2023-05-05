@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use resvg::usvg::NodeExt;
+use resvg::usvg::Rect;
 use resvg::usvg::TreeParsing;
 use resvg::usvg::TreeTextToPath;
 
@@ -31,34 +32,98 @@ pub(crate) fn svg_parse(input_svg_path: &PathBuf, output_png_path: PathBuf) {
 
     // TODO? But this display the text in teh final .png, which is NOT what we want
     // ideally we should play with layer and visibility
-    // tree.convert_text(&fontdb);
+    tree.convert_text(&fontdb);
 
-    ////////////////////////////////////////////////////////////////////////////
-    /// https://github.com/RazrFalcon/resvg/blob/master/examples/draw_bboxes.rs
+    // let mut bboxes = Vec::new();
+    // let mut text_bboxes = Vec::new();
+
+    // https://github.com/RazrFalcon/resvg/blob/master/examples/draw_bboxes.rs
     //
-    let mut bboxes = Vec::new();
-    let mut text_bboxes = Vec::new();
+    // let mut current_group_bboxes = vec![];
+    let mut all_group_bboxes = vec![];
     for node in tree.root.descendants() {
         if let Some(bbox) = node.calculate_bbox().and_then(|r| r.to_rect()) {
-            bboxes.push(bbox);
+            println!("NodeKind calculate_bbox : {}", bbox);
+            // bboxes.push(bbox);
+
+            // NOTE: careful NodeKind::Group means both:
+            // - a group, in which case group.id is empty
+            // - a text field, in which case eg: `group.id == "button5"`
+            if let resvg::usvg::NodeKind::Group(ref group) = *node.borrow() {
+                println!("NodeKind::Group : {}", group.id);
+                // first case: new group
+                if group.id.is_empty() || group.id.starts_with("layer") {
+                    // // when we have a "current group", store it!
+                    // if !current_group_bboxes.is_empty() {
+                    //     all_group_bboxes.push(current_group_bboxes.clone());
+                    // }
+                    // current_group_bboxes.clear();
+
+                    // nothing to do!
+                } else {
+                    // current_group_bboxes.push(bbox);
+                    all_group_bboxes.push(bbox);
+                }
+            }
         }
 
         // Text bboxes are different from path bboxes.
         if let resvg::usvg::NodeKind::Path(ref path) = *node.borrow() {
-            println!("NodeKind::Path : {}", path.id);
+            // println!("NodeKind::Path : {}", path.id);
             if let Some(ref bbox) = path.text_bbox {
-                text_bboxes.push(*bbox);
+                println!("NodeKind::Path : {}, {:?}", path.id, path.text_bbox);
+                // text_bboxes.push(*bbox);
             }
         }
 
         if let resvg::usvg::NodeKind::Text(ref text) = *node.borrow() {
             println!("NodeKind::Text : {}, {:?}", text.id, text.positions);
+            todo!("NodeKind::Text");
         }
 
-        if let resvg::usvg::NodeKind::Group(ref group) = *node.borrow() {
-            println!("NodeKind::Group : {}", group.id);
-        }
+        // // NOTE: careful NodeKind::Group means both:
+        // // - a group, in which case group.id is empty
+        // // - a text field, in which case eg: `group.id == "button5"`
+        // if let resvg::usvg::NodeKind::Group(ref group) = *node.borrow() {
+        //     println!("NodeKind::Group : {}", group.id);
+        //     // first case: new group
+        //     if group.id.is_empty() {
+        //         current_group_bboxes.clear();
+        //     } else {
+        //     }
+        // }
     }
+
+    // compute the centers of each "group of bboxes"
+    // let mut bboxes = Vec::new();
+    // for group_bboxes in all_group_bboxes {
+    //     // NOTE: bottom == "self.y + self.height"
+    //     // means the top is down! Sowe need to invert the min/max logic for top/bottom
+    //     let mut min_top = f64::MAX;
+    //     let mut max_bottom = f64::MIN;
+    //     let mut max_right = f64::MIN;
+    //     let mut min_left = f64::MAX;
+
+    //     for bbox in group_bboxes {
+    //         min_top = min_top.min(bbox.top());
+    //         max_bottom = max_bottom.max(bbox.bottom());
+    //         max_right = max_right.max(bbox.right());
+    //         min_left = min_left.min(bbox.left());
+    //     }
+
+    //     let bounding_bbox = Rect::new(
+    //         min_left,
+    //         min_top,
+    //         max_right - min_left,
+    //         max_bottom - min_top,
+    //     )
+    //     .unwrap();
+
+    //     println!("group_bboxes : {}", bounding_bbox);
+    //     bboxes.push(bounding_bbox);
+    // }
+
+    let bboxes = all_group_bboxes;
 
     let stroke = Some(usvg::Stroke {
         paint: usvg::Paint::Color(usvg::Color::new_rgb(255, 0, 0)),
@@ -80,13 +145,13 @@ pub(crate) fn svg_parse(input_svg_path: &PathBuf, output_png_path: PathBuf) {
         }));
     }
 
-    for bbox in text_bboxes {
-        tree.root.append_kind(usvg::NodeKind::Path(usvg::Path {
-            stroke: stroke2.clone(),
-            data: Rc::new(usvg::PathData::from_rect(bbox)),
-            ..usvg::Path::default()
-        }));
-    }
+    // for bbox in text_bboxes {
+    //     tree.root.append_kind(usvg::NodeKind::Path(usvg::Path {
+    //         stroke: stroke2.clone(),
+    //         data: Rc::new(usvg::PathData::from_rect(bbox)),
+    //         ..usvg::Path::default()
+    //     }));
+    // }
 
     ////////////////////////////////////////////////////////////////////////////
 
