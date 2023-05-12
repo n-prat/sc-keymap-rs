@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<preparedreport>
+    <previewpages>
+        <page0>
+            <b2 t="991,09462" h="33,15801">
+                <m4 u="7" />
+                <m5 u="9" />
+                <m6 u="[R2.1]" />
+                <m7 h="20,59895"
+                    u="&#60;b&#62;#9 (Fire 2-nd stage) &#60;/b&#62;&#60;b&#62;- Button with momentary action&#60;/b&#62;" />
+                <g1 Left="0" Top="6,22046999999998" Width="718,1107" Height="1,88976378"
+                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
+            </b2>
+            <b5 t="1024,25263" />
+        </page0>
+        <page0>
+            <b6 t="0">
+                <m11 u="" />
+                <s3 u="2" />
+            </b6>
+            <b2 t="22,67718" h="32,12105">
+                <p2 t="0" w="113" h="22" ImageIndex="23" Transparent="1" />
+                <m7 t="0" h="32,12105"
+                    u="&#60;font color=&#34;#000000&#34;&#62;Virtual button with SHIFT1 = 63&#13;&#10;Virtual button with SHIFT2 = 92" />
+            </b2>
+            <b3 t="54,79823" h="33,77953">
+                <s1 />
+                <p3 w="113" h="22" ImageIndex="24" Transparent="1" />
+                <m8 u="9" />
+                <s2 />
+                <m9 u="&#60;b&#62;#9 &#60;/b&#62; Joystick button : #2" />
+                <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
+                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
+            </b3>
+        </page0>
+    </previewpages>
+</preparedreport>
