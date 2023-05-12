@@ -40,6 +40,8 @@ impl Args {
 }
 
 fn main() -> Result<(), Error> {
+    env_logger::init();
+
     let args = Args::parse_args();
 
     let start_time = Instant::now();

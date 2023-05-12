@@ -20,7 +20,7 @@ pub enum VkbError {
 }
 
 pub(crate) fn parse_report(xml_path: PathBuf) -> Result<VkbBindings, VkbError> {
-    let vkb_report = vkb_xml::parse_report_xml(xml_path)?;
+    let vkb_report = vkb_xml::VkbReport::new(xml_path)?;
 
     Ok(VkbBindings {})
 }
