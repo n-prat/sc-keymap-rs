@@ -3,12 +3,17 @@
 //! and building various "Button" instances from these.
 //!
 
+use std::collections::HashSet;
+
+use log::warn;
 use scraper::ElementRef;
 use scraper::Html;
 use scraper::Selector;
 use serde::Deserialize;
 
 use super::vkb_xml::Page0Item;
+use super::vkb_xml::VkbReport;
+use super::vkb_xml::VkbXmlButton;
 use super::vkb_xml::B2;
 use super::vkb_xml::B3;
 use super::VkbError;
@@ -19,7 +24,7 @@ use super::VkbError;
 /// <b>#6 </b> Joystick button : #52
 /// <b>#6 (F1) </b><b>TEMPO </b>\r\nVirtual button Short #6\r\nVirtual button Long #96
 /// etc
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 struct Button {
     kind: ButtonKind,
 }
@@ -33,7 +38,76 @@ impl Button {
     }
 }
 
-#[derive(PartialEq, Debug)]
+impl TryFrom<VkbXmlButton> for Button {
+    type Error = VkbError;
+
+    fn try_from(xml_button: VkbXmlButton) -> Result<Self, Self::Error> {
+        match xml_button {
+            VkbXmlButton::B2(b2) => Button::try_from(b2),
+            VkbXmlButton::B3(b3) => Button::try_from(b3),
+        }
+    }
+}
+
+/// This is the final mapping, correspondonding to the XML!
+///
+/// It does NOT contain any game keybind!
+struct ButtonMap {
+    /// This set is here to help detect duplicated virtual buttons
+    /// Typically when using SHIFT or TEMPO you can have 2 different physical buttons
+    /// that end up bound to the same virtual/logical one in-game.
+    ///
+    /// Result: the same in-game function can be done using two different buttons
+    ///
+    /// Note that is NOT detect by VkbDevCfg, probably because this NOT (necessarily) a bug;
+    /// this is mostly a "waste of space".
+    already_seen_virtual_buttons: HashSet<u8>,
+}
+
+impl TryFrom<VkbReport> for ButtonMap {
+    type Error = VkbError;
+
+    fn try_from(vkb_report: VkbReport) -> Result<Self, Self::Error> {
+        let mut already_seen_virtual_buttons = HashSet::new();
+
+        let vkb_buttons = vkb_report.get_all_buttons();
+
+        // We loop on all b2/b3 buttons from the xml
+        // IMPORTANT:
+        // - b2 are the physical buttons, they are the PARENT
+        // - b3 are virtual/logical ones: these are the ones bound in-game
+        let mut current_parent = None;
+        for vkb_button in vkb_buttons {
+            match Button::try_from(vkb_button) {
+                Ok(button) => {
+                    match &button.kind {
+                        ButtonKind::Physical { id, kind } => {
+                            current_parent = Some(&button);
+                        }
+                        ButtonKind::Virtual { id } => {
+                            match already_seen_virtual_buttons.insert(id.clone()) {
+                                true => {
+                                    // inserted = nothing to do
+                                }
+                                false => {
+                                    // NOT inserted = the virtual button was already processed!
+                                    warn!("virtual button duplicated : {}", id);
+                                }
+                            };
+                        }
+                    };
+                }
+                Err(err) => todo!(),
+            }
+        }
+
+        Ok(Self {
+            already_seen_virtual_buttons,
+        })
+    }
+}
+
+#[derive(PartialEq, Debug, Clone)]
 enum ButtonKind {
     /// This matches a "b2" field in xml
     /// To get the ID we need to parse the desc...
@@ -45,7 +119,7 @@ enum ButtonKind {
     Virtual { id: u8 },
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 enum PhysicalButtonKind {
     /// The standard, basic button with no SHIT, or anything particular
     /// VKB = "Button with momentary action"
@@ -68,7 +142,7 @@ enum PhysicalButtonKind {
     Undefined,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 enum TempoKind {
     /// Short+Long press
     /// "second line pulse length is equal to T_Tgl value in no matter to real depressing time"
@@ -83,7 +157,7 @@ enum TempoKind {
     Tempo3,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 enum ShiftKind {
     Shift1 {
         button_id_shift1: u8,
@@ -366,6 +440,8 @@ impl TryFrom<B3> for Button {
 
 #[cfg(test)]
 mod tests {
+    use crate::vkb::vkb_xml::VkbReport;
+
     use super::*;
 
     #[test]
@@ -509,6 +585,15 @@ mod tests {
                     },
                 },
             ),
+            (
+                "<b>#9 (Fire 2-nd stage) </b><b>- Button with momentary action</b>\r\nVirtual button with SHIFT1 = 63\r\nVirtual button with SHIFT2 = 92",
+                Button {
+                    kind: ButtonKind::Physical {
+                        id: 9,
+                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift12 { button_id_shift1: 63, button_id_shift2: 92 }) },
+                    },
+                },
+            ),
         ];
 
         // TODO handle // "<font color=\"#000000\">Virtual button with SHIFT1 = 63\r\nVirtual button with SHIFT2 = 92"
@@ -533,5 +618,61 @@ mod tests {
             let button = parse_b3_button_desc_xml_escaped(input).unwrap();
             assert_eq!(button, expected_result);
         }
+    }
+
+    #[test]
+    fn test_buttons_try_from_vkb_report_simplified() {
+        let vkb_report = VkbReport::new(
+            concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/tests/data/vkb_report_simplified.fp3"
+            )
+            .into(),
+        )
+        .unwrap();
+
+        let vkb_buttons = vkb_report.get_all_buttons();
+
+        for vkb_button in vkb_buttons {
+            assert!(
+                Button::try_from(vkb_button.clone()).is_ok(),
+                "FAIL: could not parse: {:?}",
+                vkb_button
+            );
+        }
+    }
+
+    #[test]
+    fn test_button_map_simplified() {
+        let vkb_report = VkbReport::new(
+            concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/tests/data/vkb_report_simplified.fp3"
+            )
+            .into(),
+        )
+        .unwrap();
+
+        assert!(ButtonMap::try_from(vkb_report).is_ok());
+    }
+
+    #[test]
+    fn test_button_map_vkb_report_R() {
+        let vkb_report = VkbReport::new(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/bindings/vkb_report_R.fp3").into(),
+        )
+        .unwrap();
+
+        assert!(ButtonMap::try_from(vkb_report).is_ok());
+    }
+
+    #[test]
+    fn test_button_map_vkb_report_L() {
+        let vkb_report = VkbReport::new(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/bindings/vkb_report_L.fp3").into(),
+        )
+        .unwrap();
+
+        assert!(ButtonMap::try_from(vkb_report).is_ok());
     }
 }

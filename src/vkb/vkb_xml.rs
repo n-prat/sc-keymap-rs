@@ -15,7 +15,7 @@ use super::VkbError;
 /// <m7 t="0" h="32,12105"
 /// u="&#60;font color=&#34;#000000&#34;&#62;Virtual button with SHIFT1 = 63&#13;&#10;Virtual button with SHIFT2 = 92" />
 ///
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub(super) struct M7 {
     /// This is the description; xml escaped!
     #[serde(rename = "@u")]
@@ -26,7 +26,7 @@ pub(super) struct M7 {
 /// <m5 u="29" />
 /// and is "Page0.LineN" which would seem to indicate this is only for ordering
 /// BUT it maps nicely to the "physical button ID"???
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub(super) struct M5 {
     /// This is the description; xml escaped!
     #[serde(rename = "@u")]
@@ -42,7 +42,7 @@ pub(super) struct M5 {
 ///
 /// NOTE: only care about "m7": <m7 name="Page0.Description1" />
 /// "p2" is an image: <p2 name="Page0.Image1" />
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub(super) struct B2 {
     #[serde(rename = "@t")]
     t: String,
@@ -57,7 +57,7 @@ pub(super) struct B2 {
 
 /// Maps the M3 child struct Virtual Button ID ("VBN" in VKB terminology)
 /// <m8 u="95" />
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub(super) struct M8 {
     /// This is the description; xml escaped!
     #[serde(rename = "@u")]
@@ -66,7 +66,7 @@ pub(super) struct M8 {
 
 /// Maps the description for the M3 child struct
 /// <m9 u="&#60;b&#62;#95 &#60;/b&#62; Joystick button : #95" />
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub(super) struct M9 {
     /// This is the description; xml escaped!
     #[serde(rename = "@u")]
@@ -87,7 +87,7 @@ pub(super) struct M9 {
 /// NOTE: only care about
 /// - "m8": <m8 name="Page0.VBN" /> -> the Virtual Button number?
 /// - "m9": <m9 name="Page0.Decsription2" /> -> description field, same as "m7" for "b2" struct
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub(super) struct B3 {
     #[serde(rename = "@t")]
     t: String,
@@ -168,20 +168,52 @@ pub(super) struct VkbReport {
     previewpages: PreviewPages,
 }
 
+/// A XML parsed button, matching a "b2" or "b3" xml field
+/// this is mapped directly from the xml field, no logic, no checks, etc
 ///
-// TODO remove feature "overlapped-lists" and add a wrapper for B2 + Optional<Vec<B3>>
-pub(super) fn parse_report_xml(xml_path: PathBuf) -> Result<VkbReport, VkbError> {
-    let xml_str = std::fs::read_to_string(xml_path).map_err(|_| VkbError::Unknown)?;
+/// The next step is done by src/vkb/vkb_button.rs
+#[derive(Debug, Clone)]
+pub(super) enum VkbXmlButton {
+    B2(B2),
+    B3(B3),
+}
 
-    // TODO
-    let vkb_report: VkbReport = quick_xml::de::from_str(&xml_str).map_err(|err| {
-        println!("report error: {:?}", err);
-        VkbError::Unknown
-    })?;
+impl VkbReport {
+    /// Parse a VKB .fp3 report (== .xml)
+    // TODO remove feature "overlapped-lists" and add a wrapper for B2 + Optional<Vec<B3>>
+    pub(super) fn new(xml_path: PathBuf) -> Result<Self, VkbError> {
+        let xml_str = std::fs::read_to_string(xml_path).map_err(|_| VkbError::Unknown)?;
 
-    println!("report: {:#?}", vkb_report);
+        // TODO
+        let vkb_report: VkbReport = quick_xml::de::from_str(&xml_str).map_err(|err| {
+            println!("report error: {:?}", err);
+            VkbError::Unknown
+        })?;
 
-    Ok(vkb_report)
+        Ok(vkb_report)
+    }
+
+    /// Return only the b2/b3 list of fields from the VKB report
+    pub(super) fn get_all_buttons(&self) -> Vec<VkbXmlButton> {
+        let mut vkb_buttons = vec![];
+
+        for page in &self.previewpages.page0 {
+            match &page.b {
+                Some(page_items) => {
+                    for page_item in page_items {
+                        match page_item {
+                            Page0Item::b2(b2) => vkb_buttons.push(VkbXmlButton::B2(b2.clone())),
+                            Page0Item::b3(b3) => vkb_buttons.push(VkbXmlButton::B3(b3.clone())),
+                            _ => {}
+                        }
+                    }
+                }
+                None => todo!(),
+            }
+        }
+
+        vkb_buttons
+    }
 }
 
 #[cfg(test)]
@@ -289,22 +321,29 @@ mod tests {
 
     #[test]
     fn test_parse_ReportFull_simplified() {
-        let xml_str = include_str!("../../tests/data/vkb_report_simplified.fp3");
-
-        quick_xml::de::from_str::<VkbReport>(xml_str).unwrap();
+        assert!(VkbReport::new(
+            concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/tests/data/vkb_report_simplified.fp3"
+            )
+            .into(),
+        )
+        .is_ok());
     }
 
     #[test]
     fn test_parse_ReportFull_full_R() {
-        let xml_str = include_str!("../../bindings/vkb_report_R.fp3");
-
-        quick_xml::de::from_str::<VkbReport>(xml_str).unwrap();
+        assert!(VkbReport::new(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/bindings/vkb_report_R.fp3").into(),
+        )
+        .is_ok());
     }
 
     #[test]
     fn test_parse_ReportFull_full_L() {
-        let xml_str = include_str!("../../bindings/vkb_report_L.fp3");
-
-        quick_xml::de::from_str::<VkbReport>(xml_str).unwrap();
+        assert!(VkbReport::new(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/bindings/vkb_report_L.fp3").into(),
+        )
+        .is_ok());
     }
 }
