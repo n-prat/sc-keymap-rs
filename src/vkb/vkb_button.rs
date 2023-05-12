@@ -389,31 +389,15 @@ impl TryFrom<B2> for Button {
     type Error = VkbError;
 
     fn try_from(b2_xml: B2) -> Result<Self, Self::Error> {
-        let button = match &b2_xml.m7 {
-            Some(m7) => parse_b2_button_desc_xml_escaped(&m7.desc_xml_escaped),
-            None => Err(VkbError::UnexpectedXmlDesc(format!(
-                "missing m7 field: {:?}",
-                b2_xml
-            ))),
-        }?;
+        let button = parse_b2_button_desc_xml_escaped(&b2_xml.m7.desc_xml_escaped)?;
 
         // CHECK: the "m5" field SHOULD match the parsed button ID
-        match &b2_xml.m5 {
-            Some(m5) => {
-                if m5.physical_button_id.parse::<u8>().unwrap() != button.get_id() {
-                    return Err(VkbError::UnexpectedXmlDesc(format!(
-                        "m5 field value does not match: {:?}",
-                        b2_xml
-                    )));
-                }
-            }
-            None => {
-                return Err(VkbError::UnexpectedXmlDesc(format!(
-                    "missing m5 field value: {:?}",
-                    b2_xml
-                )))
-            }
-        };
+        if b2_xml.m5.physical_button_id.parse::<u8>().unwrap() != button.get_id() {
+            return Err(VkbError::UnexpectedXmlDesc(format!(
+                "m5 field value does not match: {:?}",
+                b2_xml
+            )));
+        }
 
         Ok(button)
     }
@@ -632,6 +616,7 @@ mod tests {
         .unwrap();
 
         let vkb_buttons = vkb_report.get_all_buttons();
+        assert!(vkb_buttons.len() > 10);
 
         for vkb_button in vkb_buttons {
             assert!(
