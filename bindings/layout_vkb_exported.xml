@@ -1,5 +1,5 @@
-<ActionMaps version="1" optionsVersion="2" rebindVersion="2" profileName="vkb_v9">
-    <CustomisationUIHeader label="vkb_v9" description="" image="">
+<ActionMaps version="1" optionsVersion="2" rebindVersion="2" profileName="3_20_v1">
+    <CustomisationUIHeader label="3_20_v1" description="" image="">
         <devices>
             <keyboard instance="1" />
             <mouse instance="1" />
@@ -160,7 +160,7 @@
         <action name="v_strafe_lateral">
             <rebind input="js2_x" />
         </action>
-        <action name="v_strafe_longitudinal">
+        <action name="v_strafe_longitudinal_abs">
             <rebind input="js2_rotz" />
         </action>
         <action name="v_strafe_vertical">
@@ -324,6 +324,9 @@
     <actionmap name="vehicle_capacitor_assignment">
         <action name="v_capacitor_assignment_engine_combined_increase_max">
             <rebind input="kb1_ " />
+            <rebind input="js2_ " />
+        </action>
+        <action name="v_capacitor_assignment_engine_max">
             <rebind input="js2_button8" />
         </action>
         <action name="v_capacitor_assignment_reset">
@@ -332,10 +335,16 @@
         </action>
         <action name="v_capacitor_assignment_shield_combined_increase_max">
             <rebind input="kb1_ " />
+            <rebind input="js2_ " />
+        </action>
+        <action name="v_capacitor_assignment_shield_max">
             <rebind input="js2_button7" />
         </action>
         <action name="v_capacitor_assignment_weapon_combined_increase_max">
             <rebind input="kb1_ " />
+            <rebind input="js2_ " />
+        </action>
+        <action name="v_capacitor_assignment_weapon_max">
             <rebind input="js2_button9" />
         </action>
     </actionmap>
