@@ -38,6 +38,10 @@ Use "save" not "export". You want a `.fp3` file which is machine readable, the `
 
 TODO[page0]? support pagination? But is it really worth to preprocess to merge `b2` split on multiple pages and all the code that comes with it instead of exporting all on one page?
 
+### Run
+
+`RUST_LOG=warn cargo run -- --vkb-report /REPLACEME/PATH/TO/sc-keymap-rs/bindings/vkb_report_L.fp3`
+
 ### Known Issues
 
 #### Missing text

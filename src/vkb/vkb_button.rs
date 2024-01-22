@@ -52,7 +52,8 @@ impl TryFrom<VkbXmlButton> for Button {
 /// This is the final mapping, correspondonding to the XML!
 ///
 /// It does NOT contain any game keybind!
-struct ButtonMap {
+#[derive(PartialEq, Debug)]
+pub(crate) struct ButtonMap {
     /// This set is here to help detect duplicated virtual buttons
     /// Typically when using SHIFT or TEMPO you can have 2 different physical buttons
     /// that end up bound to the same virtual/logical one in-game.

@@ -84,6 +84,9 @@ fn main() -> Result<(), Error> {
         Some(vkb_report) => {
             let vkb_report = vkb::parse_report(vkb_report).unwrap();
             println!("vkb_report : {:#?}", vkb_report);
+
+            let vkb_buttons = vkb::check_report(vkb_report);
+            println!("vkb_buttons : {:#?}", vkb_buttons);
         }
         None => println!("SKIP : no vkb_report path given"),
     }

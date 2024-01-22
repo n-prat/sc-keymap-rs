@@ -27,3 +27,8 @@ pub(crate) fn parse_report(xml_path: PathBuf) -> Result<VkbBindings, VkbError> {
 
     Ok(VkbBindings { vkb_report })
 }
+
+pub(crate) fn check_report(vkb_binding: VkbBindings) -> vkb_button::ButtonMap {
+    let vkb_buttons = vkb_button::ButtonMap::try_from(vkb_binding.vkb_report).unwrap();
+    vkb_buttons
+}
