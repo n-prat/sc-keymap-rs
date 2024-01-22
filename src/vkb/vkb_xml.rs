@@ -192,7 +192,7 @@ impl VkbReport {
     pub(super) fn new(xml_path: PathBuf) -> Result<Self, VkbError> {
         let xml_str = std::fs::read_to_string(xml_path).map_err(|_| VkbError::Unknown)?;
 
-        let xml_str = Self::preprocess_fix_pages(&xml_str);
+        // let xml_str = Self::preprocess_fix_pages(&xml_str);
 
         let vkb_report: VkbReport = quick_xml::de::from_str(&xml_str).map_err(|err| {
             println!("report error: {:?}", err);
