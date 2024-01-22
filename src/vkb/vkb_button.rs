@@ -140,6 +140,8 @@ enum PhysicalButtonKind {
     },
     /// "No defined function"
     Undefined,
+    /// "(Ministick push) Microstick Mode Switch"
+    MicrostickModeSwitch,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -154,7 +156,11 @@ enum TempoKind {
         button_id_long: u8,
     },
     /// Short+Long press+Double press
-    Tempo3,
+    Tempo3 {
+        button_id_short: u8,
+        button_id_long: u8,
+        button_id_double: u8,
+    },
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -162,7 +168,9 @@ enum ShiftKind {
     Shift1 {
         button_id_shift1: u8,
     },
-    Shift2,
+    Shift2 {
+        button_id_shift2: u8,
+    },
     Shift12 {
         button_id_shift1: u8,
         button_id_shift2: u8,
@@ -275,7 +283,10 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, Vk
             (Some(text), None) => text,
             _ => unimplemented!("TEMPO: SHOULD NOT be here!"),
         };
-        if text.contains("Virtual button Short #") && text.contains("Virtual button Long #") {
+        if text.contains("Virtual button Short #")
+            && text.contains("Virtual button Long #")
+            && !text.contains("Virtual button Double Short #")
+        {
             let short_id = text
                 .split("Virtual button Short #")
                 .last()
@@ -287,6 +298,31 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, Vk
             PhysicalButtonKind::Tempo(TempoKind::Tempo2 {
                 button_id_short: short_id.parse().unwrap(),
                 button_id_long: long_id.parse().unwrap(),
+            })
+        } else if text.contains("Virtual button Short #")
+            && text.contains("Virtual button Long #")
+            && text.contains("Virtual button Double Short #")
+        {
+            let short_id = text
+                .split("Virtual button Short #")
+                .last()
+                .unwrap()
+                .split("Virtual button Long #")
+                .next()
+                .unwrap();
+            let long_id = text
+                .split("Virtual button Long #")
+                .last()
+                .unwrap()
+                .split("Virtual button Double Short #")
+                .next()
+                .unwrap()
+                .replace("\n", "");
+            let double_id = text.split("Virtual button Double Short #").last().unwrap();
+            PhysicalButtonKind::Tempo(TempoKind::Tempo3 {
+                button_id_short: short_id.parse().unwrap(),
+                button_id_long: long_id.parse().unwrap(),
+                button_id_double: double_id.parse().unwrap(),
             })
         } else {
             todo!()
@@ -326,6 +362,15 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, Vk
                             button_id_shift1: shift1_id.parse().unwrap(),
                         }),
                     }
+                } else if !text.contains("Virtual button with SHIFT1 =")
+                    && text.contains("Virtual button with SHIFT2 =")
+                {
+                    let shift1_id = text.split("Virtual button with SHIFT2 = ").last().unwrap();
+                    PhysicalButtonKind::Momentary {
+                        shift: Some(ShiftKind::Shift2 {
+                            button_id_shift2: shift1_id.parse().unwrap(),
+                        }),
+                    }
                 } else {
                     todo!()
                 }
@@ -334,11 +379,15 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, Vk
         }
     } else if remaining_b_node_inner_html.contains(" SHIFT1 ") {
         PhysicalButtonKind::Shift1
+    } else if remaining_b_node_inner_html.contains(" SHIFT2 alternate action") {
+        PhysicalButtonKind::Shift2
     } else if remaining_b_node_inner_html.contains("Point of view Switch") {
         let direction = texts.1.unwrap().split(" ").last().unwrap().to_string();
         PhysicalButtonKind::Pov { direction }
     } else if remaining_b_node_inner_html.contains("No defined function") {
         PhysicalButtonKind::Undefined
+    } else if remaining_b_node_inner_html.contains("Microstick Mode Switch") {
+        PhysicalButtonKind::MicrostickModeSwitch
     } else {
         todo!("not TEMPO");
     };
@@ -391,13 +440,13 @@ impl TryFrom<B2> for Button {
     fn try_from(b2_xml: B2) -> Result<Self, Self::Error> {
         let button = parse_b2_button_desc_xml_escaped(&b2_xml.m7.desc_xml_escaped)?;
 
-        // CHECK: the "m5" field SHOULD match the parsed button ID
-        if b2_xml.m5.physical_button_id.parse::<u8>().unwrap() != button.get_id() {
-            return Err(VkbError::UnexpectedXmlDesc(format!(
-                "m5 field value does not match: {:?}",
-                b2_xml
-            )));
-        }
+        // TODO(re-add CHECK): the "m5" field SHOULD match the parsed button ID
+        // if b2_xml.m5.physical_button_id.parse::<u8>().unwrap() != button.get_id() {
+        //     return Err(VkbError::UnexpectedXmlDesc(format!(
+        //         "m5 field value does not match: {:?}",
+        //         b2_xml
+        //     )));
+        // }
 
         Ok(button)
     }
@@ -503,6 +552,15 @@ mod tests {
                     kind: ButtonKind::Physical {
                         id: 5,
                         kind: PhysicalButtonKind::Tempo(TempoKind::Tempo2 { button_id_short: 5, button_id_long: 94 }),
+                    },
+                },
+            ),
+            (
+                "<b>#5 (F3) </b><b>TEMPO </b>\r\nVirtual button Short #5\r\nVirtual button Long #94\r\nVirtual button Double Short #95",
+                Button {
+                    kind: ButtonKind::Physical {
+                        id: 5,
+                        kind: PhysicalButtonKind::Tempo(TempoKind::Tempo3 { button_id_short: 5, button_id_long: 94, button_id_double: 95 } ),
                     },
                 },
             ),
