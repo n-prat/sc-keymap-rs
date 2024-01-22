@@ -3,6 +3,7 @@
 //! and building various "Button" instances from these.
 //!
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 
 use log::warn;
@@ -60,9 +61,9 @@ pub(crate) struct ButtonMap {
     ///
     /// Result: the same in-game function can be done using two different buttons
     ///
-    /// Note that is NOT detect by VkbDevCfg, probably because this NOT (necessarily) a bug;
+    /// Note that is NOT detected by VkbDevCfg, probably because this NOT (necessarily) a bug;
     /// this is mostly a "waste of space".
-    already_seen_virtual_buttons: HashSet<u8>,
+    map_virtual_button_to_parent: HashMap<u8, Vec<Button>>,
 }
 
 impl TryFrom<VkbReport> for ButtonMap {
@@ -71,7 +72,7 @@ impl TryFrom<VkbReport> for ButtonMap {
     // TODO(add-CHECK) this should be 2 maps; one parent->children and one child->parent; that way we can display proper
     // warnings to find where the duplicates originate
     fn try_from(vkb_report: VkbReport) -> Result<Self, Self::Error> {
-        let mut already_seen_virtual_buttons = HashSet::new();
+        let mut map_virtual_button_to_parent: HashMap<u8, Vec<Button>> = HashMap::new();
 
         let vkb_buttons = vkb_report.get_all_buttons();
 
@@ -88,19 +89,15 @@ impl TryFrom<VkbReport> for ButtonMap {
                             current_parent = Some(button.clone());
                         }
                         ButtonKind::Virtual { id } => {
-                            match already_seen_virtual_buttons.insert(id.clone()) {
-                                true => {
-                                    // inserted = nothing to do
-                                }
-                                false => {
-                                    // NOT inserted = the virtual button was already processed!
-                                    warn!(
-                                        "virtual button duplicated : {}, parent : {:?}",
-                                        id,
-                                        current_parent.clone().unwrap()
-                                    );
-                                }
-                            };
+                            map_virtual_button_to_parent
+                                .entry(id.clone())
+                                // NOT inserted = the virtual button was already processed!
+                                .and_modify(|parents| {
+                                    warn!("virtual button duplicated : {}", id);
+                                    parents.push(current_parent.clone().unwrap().clone());
+                                })
+                                // inserted = nothing to do
+                                .or_insert(vec![current_parent.clone().unwrap().clone()]);
                         }
                     };
                 }
@@ -109,7 +106,7 @@ impl TryFrom<VkbReport> for ButtonMap {
         }
 
         Ok(Self {
-            already_seen_virtual_buttons,
+            map_virtual_button_to_parent,
         })
     }
 }
