@@ -68,6 +68,8 @@ pub(crate) struct ButtonMap {
 impl TryFrom<VkbReport> for ButtonMap {
     type Error = VkbError;
 
+    // TODO(add-CHECK) this should be 2 maps; one parent->children and one child->parent; that way we can display proper
+    // warnings to find where the duplicates originate
     fn try_from(vkb_report: VkbReport) -> Result<Self, Self::Error> {
         let mut already_seen_virtual_buttons = HashSet::new();
 
@@ -83,7 +85,7 @@ impl TryFrom<VkbReport> for ButtonMap {
                 Ok(button) => {
                     match &button.kind {
                         ButtonKind::Physical { id, kind } => {
-                            current_parent = Some(&button);
+                            current_parent = Some(button.clone());
                         }
                         ButtonKind::Virtual { id } => {
                             match already_seen_virtual_buttons.insert(id.clone()) {
@@ -92,7 +94,11 @@ impl TryFrom<VkbReport> for ButtonMap {
                                 }
                                 false => {
                                     // NOT inserted = the virtual button was already processed!
-                                    warn!("virtual button duplicated : {}", id);
+                                    warn!(
+                                        "virtual button duplicated : {}, parent : {:?}",
+                                        id,
+                                        current_parent.clone().unwrap()
+                                    );
                                 }
                             };
                         }
