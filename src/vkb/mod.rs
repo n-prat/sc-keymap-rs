@@ -5,7 +5,10 @@ use thiserror::Error;
 mod vkb_button;
 mod vkb_xml;
 
-pub(super) struct VkbBindings {}
+#[derive(Debug)]
+pub(super) struct VkbBindings {
+    vkb_report: vkb_xml::VkbReport,
+}
 
 #[derive(Error, Debug)]
 pub enum VkbError {
@@ -22,5 +25,5 @@ pub enum VkbError {
 pub(crate) fn parse_report(xml_path: PathBuf) -> Result<VkbBindings, VkbError> {
     let vkb_report = vkb_xml::VkbReport::new(xml_path)?;
 
-    Ok(VkbBindings {})
+    Ok(VkbBindings { vkb_report })
 }
