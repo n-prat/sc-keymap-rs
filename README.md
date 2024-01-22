@@ -34,6 +34,10 @@ Possibly could be done with Illustrator("Dynamic Symbols") but not Open Source n
 
 Use "save" not "export". You want a `.fp3` file which is machine readable, the `export as pdf` function is not!
 
+**IMPORTANT** you MUST make sure the report is ONE page only; check "Page settings" button, and replace 29,7cm height by eg 300+cm
+
+TODO[page0]? support pagination? But is it really worth to preprocess to merge `b2` split on multiple pages and all the code that comes with it instead of exporting all on one page?
+
 ### Known Issues
 
 #### Missing text
