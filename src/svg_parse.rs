@@ -22,6 +22,7 @@ use resvg::usvg;
 /// WARNING apparently there is no easy way to override the font used in the .svg so you MUST edit
 /// (find+replace) to one present in your system eg find/replace Tahoma->FreeSerif and Helvetica->FreeSerif...
 /// TODO do this with a svg editor? or possible with resvg?
+///     MAYBE related https://github.com/RazrFalcon/resvg/issues/555 ?
 ///
 pub(crate) fn svg_parse(input_svg_path: PathBuf, output_png_path: PathBuf) {
     let mut opt = resvg::usvg::Options::default();
@@ -62,7 +63,7 @@ pub(crate) fn svg_parse(input_svg_path: PathBuf, output_png_path: PathBuf) {
     // https://github.com/RazrFalcon/resvg/blob/master/examples/draw_bboxes.rs
     //
     // let mut current_group_bboxes = vec![];
-    let mut all_group_bboxes = vec![];
+    // let mut all_group_bboxes = vec![];
 
     // We want to keep a node if it is:
     // - a leaf(ie it has no children), but IFF its parent was not already selected
@@ -106,58 +107,62 @@ pub(crate) fn svg_parse(input_svg_path: PathBuf, output_png_path: PathBuf) {
     //     .collect();
 
     // TODO(re-add?) .filter(|n| n.has_children())
-    for node in &tree.root.children {
-        if let Some(bbox) = node.abs_bounding_box().and_then(|r: Rect| Some(r.clone())) {
-            println!("NodeKind calculate_bbox : {:?}", bbox);
-            // bboxes.push(bbox);
+    // for node in &tree.root.children {
+    //     if let Some(bbox) = node.abs_bounding_box().and_then(|r: Rect| Some(r.clone())) {
+    //         println!("NodeKind calculate_bbox : {:?}", bbox);
+    //         // bboxes.push(bbox);
 
-            // NOTE: careful NodeKind::Group means both:
-            // - a group, in which case group.id is empty
-            // - a text field, in which case eg: `group.id == "button5"`
-            if let resvg::usvg::Node::Group(ref group) = node {
-                println!("NodeKind::Group : {}", group.id);
-                // first case: new group
-                if group.id.is_empty() || group.id.starts_with("layer") {
-                    // // when we have a "current group", store it!
-                    // if !current_group_bboxes.is_empty() {
-                    //     all_group_bboxes.push(current_group_bboxes.clone());
-                    // }
-                    // current_group_bboxes.clear();
+    //         // NOTE: careful NodeKind::Group means both:
+    //         // - a group, in which case group.id is empty
+    //         // - a text field, in which case eg: `group.id == "button5"`
+    //         if let resvg::usvg::Node::Group(ref group) = node {
+    //             println!("NodeKind::Group : {}", group.id);
+    //             // first case: new group
+    //             if group.id.is_empty() || group.id.starts_with("layer") {
+    //                 // // when we have a "current group", store it!
+    //                 // if !current_group_bboxes.is_empty() {
+    //                 //     all_group_bboxes.push(current_group_bboxes.clone());
+    //                 // }
+    //                 // current_group_bboxes.clear();
 
-                    // nothing to do!
-                } else {
-                    // current_group_bboxes.push(bbox);
-                    all_group_bboxes.push(bbox);
-                }
-            }
-        }
+    //                 // nothing to do!
+    //             } else {
+    //                 // current_group_bboxes.push(bbox);
+    //                 all_group_bboxes.push(bbox);
+    //             }
+    //         }
+    //     }
 
-        // "Text bboxes are different from path bboxes."
-        // https://github.com/RazrFalcon/resvg/blob/1dfe9e506c2f90b55e662b1803d27f0b4e4ace77/crates/resvg/examples/draw_bboxes.rs#L43C9-L48C10
-        if let usvg::Node::Text(ref text) = node {
-            if let Some(ref bbox) = text.bounding_box {
-                println!("NodeKind::Text : {:?}, {:?}", text, bbox);
-                // text_bboxes.push(bbox.to_rect());
-            }
-        }
+    //     if let resvg::usvg::Node::Group(ref group) = node {
+    //         println!("NodeKind::Group : {}", group.id);
+    //     }
 
-        if let resvg::usvg::Node::Path(ref path) = *node.borrow() {
-            println!("NodeKind::Text : {:?}", path);
-            todo!("NodeKind::Path");
-        }
+    //     // "Text bboxes are different from path bboxes."
+    //     // https://github.com/RazrFalcon/resvg/blob/1dfe9e506c2f90b55e662b1803d27f0b4e4ace77/crates/resvg/examples/draw_bboxes.rs#L43C9-L48C10
+    //     if let usvg::Node::Text(ref text) = node {
+    //         if let Some(ref bbox) = text.bounding_box {
+    //             println!("NodeKind::Text : {:?}, {:?}", text, bbox);
+    //             // text_bboxes.push(bbox.to_rect());
+    //         }
+    //     }
 
-        // // NOTE: careful NodeKind::Group means both:
-        // // - a group, in which case group.id is empty
-        // // - a text field, in which case eg: `group.id == "button5"`
-        // if let resvg::usvg::Node::Group(ref group) = *node.borrow() {
-        //     println!("NodeKind::Group : {}", group.id);
-        //     // first case: new group
-        //     if group.id.is_empty() {
-        //         current_group_bboxes.clear();
-        //     } else {
-        //     }
-        // }
-    }
+    //     if let resvg::usvg::Node::Path(ref path) = *node.borrow() {
+    //         println!("NodeKind::Text : {:?}", path);
+    //         todo!("NodeKind::Path");
+    //     }
+
+    //     // // NOTE: careful NodeKind::Group means both:
+    //     // // - a group, in which case group.id is empty
+    //     // // - a text field, in which case eg: `group.id == "button5"`
+    //     // if let resvg::usvg::Node::Group(ref group) = *node.borrow() {
+    //     //     println!("NodeKind::Group : {}", group.id);
+    //     //     // first case: new group
+    //     //     if group.id.is_empty() {
+    //     //         current_group_bboxes.clear();
+    //     //     } else {
+    //     //     }
+    //     // }
+    // }
 
     // compute the centers of each "group of bboxes"
     // let mut bboxes = Vec::new();
@@ -188,7 +193,10 @@ pub(crate) fn svg_parse(input_svg_path: PathBuf, output_png_path: PathBuf) {
     //     bboxes.push(bounding_bbox);
     // }
 
-    let bboxes = all_group_bboxes;
+    // https://github.com/RazrFalcon/resvg/blob/c6fd7f486aaef81704546f298541513f50f4f868/crates/resvg/examples/draw_bboxes.rs#L35C5-L37C65
+    let mut bboxes = Vec::new();
+    let mut stroke_bboxes = Vec::new();
+    collect_bboxes(&tree.root, &mut bboxes, &mut stroke_bboxes);
 
     // https://github.com/RazrFalcon/resvg/blob/c6fd7f486aaef81704546f298541513f50f4f868/crates/resvg/examples/draw_bboxes.rs#L39C5-L49C8
     let stroke1 = Some(usvg::Stroke {
@@ -218,6 +226,10 @@ pub(crate) fn svg_parse(input_svg_path: PathBuf, output_png_path: PathBuf) {
     //     }));
     // }
 
+    // https://github.com/RazrFalcon/resvg/blob/c6fd7f486aaef81704546f298541513f50f4f868/crates/resvg/examples/draw_bboxes.rs#L63C5-L64C37
+    // "Calculate bboxes of newly added path."
+    tree.calculate_bounding_boxes();
+
     ////////////////////////////////////////////////////////////////////////////
 
     // https://github.com/RazrFalcon/resvg/blob/c6fd7f486aaef81704546f298541513f50f4f868/crates/resvg/examples/custom_usvg_tree.rs#L56
@@ -231,6 +243,44 @@ pub(crate) fn svg_parse(input_svg_path: PathBuf, output_png_path: PathBuf) {
         &mut pixmap.as_mut(),
     );
     pixmap.save_png(output_png_path).unwrap();
+}
+
+/// https://github.com/RazrFalcon/resvg/blob/c6fd7f486aaef81704546f298541513f50f4f868/crates/resvg/examples/draw_bboxes.rs#L73C1-L93C2
+///
+fn collect_bboxes(
+    parent: &usvg::Group,
+    bboxes: &mut Vec<usvg::Rect>,
+    stroke_bboxes: &mut Vec<usvg::Rect>,
+) {
+    for node in &parent.children {
+        if let usvg::Node::Group(ref group) = node {
+            println!("Node::Group");
+            collect_bboxes(group, bboxes, stroke_bboxes);
+        }
+
+        // "Text bboxes are different from path bboxes."
+        // https://github.com/RazrFalcon/resvg/blob/1dfe9e506c2f90b55e662b1803d27f0b4e4ace77/crates/resvg/examples/draw_bboxes.rs#L43C9-L48C10
+        if let usvg::Node::Text(ref text) = node {
+            if let Some(ref bbox) = text.bounding_box {
+                println!("Node::Text : {:#?}, {:?}", text.chunks[0].text, bbox);
+                // text_bboxes.push(bbox.to_rect());
+            }
+        }
+
+        if let resvg::usvg::Node::Path(ref path) = *node.borrow() {
+            println!("Node::Path");
+        }
+
+        if let Some(bbox) = node.abs_bounding_box() {
+            bboxes.push(bbox);
+
+            if let Some(stroke_bbox) = node.abs_stroke_bounding_box() {
+                if bbox != stroke_bbox.to_rect() {
+                    stroke_bboxes.push(stroke_bbox.to_rect());
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
