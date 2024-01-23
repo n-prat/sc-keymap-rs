@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use quick_xml::events::Event;
+use quick_xml::{events::Event, DeError};
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -12,8 +12,10 @@ pub enum KeybindError {
     Redaction(String),
     #[error("invalid header (expected {expected:?}, found {found:?})")]
     InvalidHeader { expected: String, found: String },
-    #[error("unknown xml error")]
-    Unknown,
+    #[error("read error")]
+    ReadError { err: std::io::Error },
+    #[error("deserialization error")]
+    DeError { err: DeError },
 }
 
 /// Maps eg "<rebind input="js1_button2"/>"
@@ -29,12 +31,20 @@ struct XmlRebindInput {
 /// </action>
 ///
 /// using the above "XmlRebindInput"
+///
+/// NOTE apparently sometimes we can have two rebinds???
+/// ```xml
+///    <action name="v_capacitor_assignment_engine_combined_increase_max">
+///        <rebind input="kb1_ " />
+///        <rebind input="js2_ " />
+///    </action>
+/// ```
 #[derive(Deserialize, Debug)]
 struct XmlActionName {
     #[serde(rename = "@name")]
     name: String,
-    #[serde(rename = "$value")]
-    input: XmlRebindInput,
+    #[serde(rename = "rebind")]
+    rebind: Vec<XmlRebindInput>,
 }
 
 /// Maps eg
@@ -55,16 +65,49 @@ struct XmlActionMap {
 }
 
 #[derive(Deserialize, Debug)]
+struct XmlCustomisationUIHeader {}
+
+#[derive(Deserialize, Debug)]
+struct XmlDeviceOptions {
+    #[serde(rename = "@name")]
+    name: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct XmlOptions {
+    #[serde(rename = "@type")]
+    option_type: String,
+    #[serde(rename = "@instance")]
+    instance: String,
+    #[serde(rename = "@Product")]
+    product: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct XmlModifiers {}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename = "@ActionMaps")]
 struct XmlFull {
-    #[serde(default)]
+    #[serde(rename = "CustomisationUIHeader")]
+    customisation_uiheader: XmlCustomisationUIHeader,
+    #[serde(rename = "deviceoptions")]
+    device_options: Vec<XmlDeviceOptions>,
+    #[serde(rename = "options")]
+    options: Vec<XmlOptions>,
+    #[serde(rename = "modifiers")]
+    modifiers: XmlModifiers,
+    #[serde(rename = "actionmap")]
     actionmap: Vec<XmlActionMap>,
 }
 
 ///
 pub(crate) fn parse_keybind(xml_path: PathBuf) -> Result<(), KeybindError> {
-    let xml_str = std::fs::read_to_string(xml_path).map_err(|_| KeybindError::Unknown)?;
+    let xml_str =
+        std::fs::read_to_string(xml_path).map_err(|err| KeybindError::ReadError { err })?;
 
-    let xml_data: XmlFull = quick_xml::de::from_str(&xml_str).map_err(|_| KeybindError::Unknown)?;
+    let xml_data: XmlFull =
+        quick_xml::de::from_str(&xml_str).map_err(|err| KeybindError::DeError { err })?;
 
     println!("keybinds: {:?}", xml_data);
 
@@ -166,5 +209,17 @@ mod tests {
         let xml_str = include_str!("../tests/data/layout_exported_simplified.xml");
 
         quick_xml::de::from_str::<XmlFull>(xml_str).unwrap();
+    }
+
+    #[test]
+    fn test_parse_keybind_full_exported() {
+        parse_keybind(
+            concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/bindings/layout_vkb_exported.xml"
+            )
+            .into(),
+        )
+        .unwrap();
     }
 }
