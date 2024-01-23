@@ -1,11 +1,11 @@
+use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use resvg::usvg::NodeExt;
+use usvg::{fontdb, TreeParsing, TreePostProc};
+
 use resvg::usvg::Rect;
-use resvg::usvg::TreeParsing;
-use resvg::usvg::TreeTextToPath;
 
 use resvg::usvg;
 
@@ -15,10 +15,18 @@ use resvg::usvg;
 /// https://github.com/RazrFalcon/resvg/blob/master/examples/draw_bboxes.rs
 /// https://github.com/RazrFalcon/resvg/blob/master/examples/custom_href_resolver.rs
 /// etc
-pub(crate) fn svg_parse(input_svg_path: &PathBuf, output_png_path: PathBuf) {
+///
+/// You can get templates .svg from: https://github.com/Rexeh/joystick-diagrams/tree/master/templates
+/// NOTE: this is a good start; but does NOT support advanced VKB features like SHIFT,TEMPO,etc
+///
+/// WARNING apparently there is no easy way to override the font used in the .svg so you MUST edit
+/// (find+replace) to one present in your system eg find/replace Tahoma->FreeSerif and Helvetica->FreeSerif...
+/// TODO do this with a svg editor? or possible with resvg?
+///
+pub(crate) fn svg_parse(input_svg_path: PathBuf, output_png_path: PathBuf) {
     let mut opt = resvg::usvg::Options::default();
     // Get file's absolute directory.
-    opt.resources_dir = std::fs::canonicalize(input_svg_path)
+    opt.resources_dir = std::fs::canonicalize(&input_svg_path)
         .ok()
         .and_then(|p| p.parent().map(|p| p.to_path_buf()));
     // "Will be used when no font-family attribute is set in the SVG. Default: Times New Roman"
@@ -27,13 +35,26 @@ pub(crate) fn svg_parse(input_svg_path: &PathBuf, output_png_path: PathBuf) {
 
     let mut fontdb = resvg::usvg::fontdb::Database::new();
     fontdb.load_system_fonts();
+    // TODO? https://github.com/RazrFalcon/resvg/blob/c6fd7f486aaef81704546f298541513f50f4f868/crates/usvg/src/main.rs#L361
+    // fontdb.set_serif_family("Times New Roman");
+    // fontdb.set_sans_serif_family("Arial");
+    // fontdb.set_cursive_family("Comic Sans MS");
+    // fontdb.set_fantasy_family("Impact");
+    // fontdb.set_monospace_family("Courier New");
 
     let svg_data = std::fs::read(input_svg_path).unwrap();
-    let mut tree = resvg::usvg::Tree::from_data(&svg_data, &opt).unwrap();
+    let mut tree = usvg::Tree::from_data(&svg_data, &opt).unwrap();
 
     // TODO? But this display the text in teh final .png, which is NOT what we want
     // ideally we should play with layer and visibility
-    tree.convert_text(&fontdb);
+    // https://github.com/RazrFalcon/resvg/blob/c6fd7f486aaef81704546f298541513f50f4f868/crates/resvg/examples/draw_bboxes.rs#L33C5-L33C69
+    tree.postprocess(
+        usvg::PostProcessingSteps {
+            // `resvg` cannot render text as is. We have to convert it into paths first.
+            convert_text_into_paths: true,
+        },
+        &fontdb,
+    );
 
     // let mut bboxes = Vec::new();
     // let mut text_bboxes = Vec::new();
@@ -49,46 +70,51 @@ pub(crate) fn svg_parse(input_svg_path: &PathBuf, output_png_path: PathBuf) {
     // - a group, if its children are in the previous case
     //   Usually this is a standard group, whose children are final leaves.
     //   In this case we DO NOT want the children, but only their parent!
-    let leaf_nodes: Vec<_> = tree
-        .root
-        .descendants()
-        .filter(|n| !n.has_children())
-        .collect();
-    let parent_leaf_nodes: Vec<_> = tree
-        .root
-        .descendants()
-        // .filter(|n| n.has_children() && n.descendants().all(|child| leaf_nodes.contains(&child)))
-        .filter(|n| n.descendants().all(|child| leaf_nodes.contains(&child)))
-        .collect();
-    let parent_nodes: Vec<_> = tree
-        .root
-        .descendants()
-        .filter(|n| n.has_children())
-        .collect();
-    let final_leaf_nodes: Vec<_> = tree
-        .root
-        .descendants()
-        .filter(|n| !n.has_children() && n.parent().unwrap().children().count() == 1)
-        .collect();
+    // let leaf_nodes: Vec<_> = tree
+    //     .root
+    //     .children
+    //     .iter()
+    //     .filter(|n| !*n.())
+    //     .collect();
+    // let parent_leaf_nodes: Vec<_> = tree
+    //     .root
+    //     .children
+    //     .iter()
+    //     // .filter(|n| n.has_children() && n.descendants().all(|child| leaf_nodes.contains(&child)))
+    //     .filter(|n| n.children.iter().all(|child| leaf_nodes.contains(&child)))
+    //     .collect();
+    // let parent_nodes: Vec<_> = tree
+    //     .root
+    //     .children
+    //     .iter()
+    //     .filter(|n| n.has_children())
+    //     .collect();
+    // let final_leaf_nodes: Vec<_> = tree
+    //     .root
+    //     .children
+    //     .iter()
+    //     .filter(|n| !n.has_children() && n.parent().unwrap().children().count() == 1)
+    //     .collect();
     // let group_nodes: Vec<_> = tree
     //     .root
     //     .descendants()
     //     .filter(|n| n.has_children() && n.parent().unwrap().children().count() > 1)
     //     .collect();
-    let parent_nodes2: Vec<_> = leaf_nodes
-        .iter()
-        .filter(|n| n.parent().unwrap().children().count() == 1)
-        .collect();
+    // let parent_nodes2: Vec<_> = leaf_nodes
+    //     .iter()
+    //     .filter(|n| n.parent().unwrap().children().count() == 1)
+    //     .collect();
 
-    for node in tree.root.descendants().filter(|n| n.has_children()) {
-        if let Some(bbox) = node.calculate_bbox().and_then(|r| r.to_rect()) {
-            println!("NodeKind calculate_bbox : {}", bbox);
+    // TODO(re-add?) .filter(|n| n.has_children())
+    for node in &tree.root.children {
+        if let Some(bbox) = node.abs_bounding_box().and_then(|r: Rect| Some(r.clone())) {
+            println!("NodeKind calculate_bbox : {:?}", bbox);
             // bboxes.push(bbox);
 
             // NOTE: careful NodeKind::Group means both:
             // - a group, in which case group.id is empty
             // - a text field, in which case eg: `group.id == "button5"`
-            if let resvg::usvg::NodeKind::Group(ref group) = *node.borrow() {
+            if let resvg::usvg::Node::Group(ref group) = node {
                 println!("NodeKind::Group : {}", group.id);
                 // first case: new group
                 if group.id.is_empty() || group.id.starts_with("layer") {
@@ -106,24 +132,24 @@ pub(crate) fn svg_parse(input_svg_path: &PathBuf, output_png_path: PathBuf) {
             }
         }
 
-        // Text bboxes are different from path bboxes.
-        if let resvg::usvg::NodeKind::Path(ref path) = *node.borrow() {
-            // println!("NodeKind::Path : {}", path.id);
-            if let Some(ref bbox) = path.text_bbox {
-                println!("NodeKind::Path : {}, {:?}", path.id, path.text_bbox);
-                // text_bboxes.push(*bbox);
+        // "Text bboxes are different from path bboxes."
+        // https://github.com/RazrFalcon/resvg/blob/1dfe9e506c2f90b55e662b1803d27f0b4e4ace77/crates/resvg/examples/draw_bboxes.rs#L43C9-L48C10
+        if let usvg::Node::Text(ref text) = node {
+            if let Some(ref bbox) = text.bounding_box {
+                println!("NodeKind::Text : {:?}, {:?}", text, bbox);
+                // text_bboxes.push(bbox.to_rect());
             }
         }
 
-        if let resvg::usvg::NodeKind::Text(ref text) = *node.borrow() {
-            println!("NodeKind::Text : {}, {:?}", text.id, text.positions);
-            todo!("NodeKind::Text");
+        if let resvg::usvg::Node::Path(ref path) = *node.borrow() {
+            println!("NodeKind::Text : {:?}", path);
+            todo!("NodeKind::Path");
         }
 
         // // NOTE: careful NodeKind::Group means both:
         // // - a group, in which case group.id is empty
         // // - a text field, in which case eg: `group.id == "button5"`
-        // if let resvg::usvg::NodeKind::Group(ref group) = *node.borrow() {
+        // if let resvg::usvg::Node::Group(ref group) = *node.borrow() {
         //     println!("NodeKind::Group : {}", group.id);
         //     // first case: new group
         //     if group.id.is_empty() {
@@ -164,28 +190,28 @@ pub(crate) fn svg_parse(input_svg_path: &PathBuf, output_png_path: PathBuf) {
 
     let bboxes = all_group_bboxes;
 
-    let stroke = Some(usvg::Stroke {
+    // https://github.com/RazrFalcon/resvg/blob/c6fd7f486aaef81704546f298541513f50f4f868/crates/resvg/examples/draw_bboxes.rs#L39C5-L49C8
+    let stroke1 = Some(usvg::Stroke {
         paint: usvg::Paint::Color(usvg::Color::new_rgb(255, 0, 0)),
         opacity: usvg::Opacity::new_clamped(0.5),
         ..usvg::Stroke::default()
     });
 
     let stroke2 = Some(usvg::Stroke {
-        paint: usvg::Paint::Color(usvg::Color::new_rgb(0, 0, 200)),
+        paint: usvg::Paint::Color(usvg::Color::new_rgb(0, 200, 0)),
         opacity: usvg::Opacity::new_clamped(0.5),
         ..usvg::Stroke::default()
     });
 
+    // https://github.com/RazrFalcon/resvg/blob/c6fd7f486aaef81704546f298541513f50f4f868/crates/resvg/examples/draw_bboxes.rs#L51
     for bbox in bboxes {
-        tree.root.append_kind(usvg::NodeKind::Path(usvg::Path {
-            stroke: stroke.clone(),
-            data: Rc::new(usvg::PathData::from_rect(bbox)),
-            ..usvg::Path::default()
-        }));
+        let mut path = usvg::Path::new(Rc::new(resvg::tiny_skia::PathBuilder::from_rect(bbox)));
+        path.stroke = stroke1.clone();
+        tree.root.children.push(usvg::Node::Path(Box::new(path)));
     }
 
     // for bbox in text_bboxes {
-    //     tree.root.append_kind(usvg::NodeKind::Path(usvg::Path {
+    //     tree.root.append_kind(usvg::Node::Path(usvg::Path {
     //         stroke: stroke2.clone(),
     //         data: Rc::new(usvg::PathData::from_rect(bbox)),
     //         ..usvg::Path::default()
@@ -194,15 +220,32 @@ pub(crate) fn svg_parse(input_svg_path: &PathBuf, output_png_path: PathBuf) {
 
     ////////////////////////////////////////////////////////////////////////////
 
-    let pixmap_size = tree.size.to_screen_size();
+    // https://github.com/RazrFalcon/resvg/blob/c6fd7f486aaef81704546f298541513f50f4f868/crates/resvg/examples/custom_usvg_tree.rs#L56
+    const ZOOM: f32 = 1.0;
+    let pixmap_size = tree.size.to_int_size().scale_by(ZOOM).unwrap();
     let mut pixmap =
         resvg::tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height()).unwrap();
     resvg::render(
         &tree,
-        resvg::FitTo::Original,
         resvg::tiny_skia::Transform::default(),
-        pixmap.as_mut(),
-    )
-    .unwrap();
+        &mut pixmap.as_mut(),
+    );
     pixmap.save_png(output_png_path).unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_button_map_vkb_report_L() {
+        svg_parse(
+            concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/tests/data/VKB-Sim Gladiator NXT L.svg"
+            )
+            .into(),
+            concat!(env!("CARGO_MANIFEST_DIR"), "/out.png").into(),
+        );
+    }
 }
