@@ -8,7 +8,7 @@ mod vkb;
 // mod pdf_form;
 // mod pdf_merge;
 // mod pdf_parse;
-// mod svg_parse;
+mod svg_parse;
 
 /// https://github.com/J-F-Liu/lopdf/blob/master/examples/extract_toc.rs
 ///
@@ -76,7 +76,15 @@ fn main() -> Result<(), Error> {
         None => println!("SKIP : no sc_mapping path given"),
     }
 
-    // svg_parse::svg_parse(&input_paths[0], "merged.png".into());
+    // TODO add clap args
+    svg_parse::svg_parse(
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/data/VKB-Sim Gladiator NXT L.svg"
+        )
+        .into(),
+        concat!(env!("CARGO_MANIFEST_DIR"), "/out.png").into(),
+    );
 
     // pdf_parse::pdf_read(input_paths[0].clone().into(), "output.txt".into());
 
