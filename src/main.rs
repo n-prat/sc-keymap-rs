@@ -27,6 +27,10 @@ pub struct Args {
     #[clap(long)]
     pub vkb_report: Option<PathBuf>,
 
+    /// Optional path to a csv button_id -> user provided description
+    #[clap(long)]
+    pub vkb_user_provided_data_path: Option<PathBuf>,
+
     /// Optional output directory. If omitted the directory of the PDF file will be used.
     #[clap(short, long)]
     pub output: Option<PathBuf>,
@@ -76,6 +80,14 @@ fn main() -> Result<(), Error> {
         None => println!("SKIP : no sc_mapping path given"),
     }
 
+    let vkb_user_provided_data = match args.vkb_user_provided_data_path {
+        Some(vkb_user_provided_data_path) => {
+            let mut rdr = csv::Reader::from_path(vkb_user_provided_data_path).unwrap();
+            Some(rdr)
+        }
+        None => None,
+    };
+
     // TODO add clap args
     svg_parse::svg_parse(
         concat!(
@@ -91,10 +103,10 @@ fn main() -> Result<(), Error> {
     match args.vkb_report {
         Some(vkb_report) => {
             let vkb_report = vkb::parse_report(vkb_report).unwrap();
-            println!("vkb_report : {:#?}", vkb_report);
+            log::info!("vkb_report : {:#?}", vkb_report);
 
-            let vkb_buttons = vkb::check_report(vkb_report);
-            println!("vkb_buttons : {:#?}", vkb_buttons);
+            let vkb_buttons = vkb::check_report(vkb_report, vkb_user_provided_data);
+            log::info!("vkb_buttons : {:#?}", vkb_buttons);
         }
         None => println!("SKIP : no vkb_report path given"),
     }

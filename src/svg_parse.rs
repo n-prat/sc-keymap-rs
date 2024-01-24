@@ -109,14 +109,14 @@ pub(crate) fn svg_parse(input_svg_path: PathBuf, output_png_path: PathBuf) {
     // TODO(re-add?) .filter(|n| n.has_children())
     // for node in &tree.root.children {
     //     if let Some(bbox) = node.abs_bounding_box().and_then(|r: Rect| Some(r.clone())) {
-    //         println!("NodeKind calculate_bbox : {:?}", bbox);
+    //         log::debug!("NodeKind calculate_bbox : {:?}", bbox);
     //         // bboxes.push(bbox);
 
     //         // NOTE: careful NodeKind::Group means both:
     //         // - a group, in which case group.id is empty
     //         // - a text field, in which case eg: `group.id == "button5"`
     //         if let resvg::usvg::Node::Group(ref group) = node {
-    //             println!("NodeKind::Group : {}", group.id);
+    //             log::debug!("NodeKind::Group : {}", group.id);
     //             // first case: new group
     //             if group.id.is_empty() || group.id.starts_with("layer") {
     //                 // // when we have a "current group", store it!
@@ -134,20 +134,20 @@ pub(crate) fn svg_parse(input_svg_path: PathBuf, output_png_path: PathBuf) {
     //     }
 
     //     if let resvg::usvg::Node::Group(ref group) = node {
-    //         println!("NodeKind::Group : {}", group.id);
+    //         log::debug!("NodeKind::Group : {}", group.id);
     //     }
 
     //     // "Text bboxes are different from path bboxes."
     //     // https://github.com/RazrFalcon/resvg/blob/1dfe9e506c2f90b55e662b1803d27f0b4e4ace77/crates/resvg/examples/draw_bboxes.rs#L43C9-L48C10
     //     if let usvg::Node::Text(ref text) = node {
     //         if let Some(ref bbox) = text.bounding_box {
-    //             println!("NodeKind::Text : {:?}, {:?}", text, bbox);
+    //             log::debug!("NodeKind::Text : {:?}, {:?}", text, bbox);
     //             // text_bboxes.push(bbox.to_rect());
     //         }
     //     }
 
     //     if let resvg::usvg::Node::Path(ref path) = *node.borrow() {
-    //         println!("NodeKind::Text : {:?}", path);
+    //         log::debug!("NodeKind::Text : {:?}", path);
     //         todo!("NodeKind::Path");
     //     }
 
@@ -155,7 +155,7 @@ pub(crate) fn svg_parse(input_svg_path: PathBuf, output_png_path: PathBuf) {
     //     // // - a group, in which case group.id is empty
     //     // // - a text field, in which case eg: `group.id == "button5"`
     //     // if let resvg::usvg::Node::Group(ref group) = *node.borrow() {
-    //     //     println!("NodeKind::Group : {}", group.id);
+    //     //     log::debug!("NodeKind::Group : {}", group.id);
     //     //     // first case: new group
     //     //     if group.id.is_empty() {
     //     //         current_group_bboxes.clear();
@@ -189,7 +189,7 @@ pub(crate) fn svg_parse(input_svg_path: PathBuf, output_png_path: PathBuf) {
     //     )
     //     .unwrap();
 
-    //     println!("group_bboxes : {}", bounding_bbox);
+    //     log::debug!("group_bboxes : {}", bounding_bbox);
     //     bboxes.push(bounding_bbox);
     // }
 
@@ -254,7 +254,7 @@ fn collect_bboxes(
 ) {
     for node in &parent.children {
         if let usvg::Node::Group(ref group) = node {
-            println!("Node::Group");
+            log::debug!("Node::Group");
             collect_bboxes(group, bboxes, stroke_bboxes);
         }
 
@@ -262,23 +262,23 @@ fn collect_bboxes(
         // https://github.com/RazrFalcon/resvg/blob/1dfe9e506c2f90b55e662b1803d27f0b4e4ace77/crates/resvg/examples/draw_bboxes.rs#L43C9-L48C10
         if let usvg::Node::Text(ref text) = node {
             if let Some(ref bbox) = text.bounding_box {
-                println!("Node::Text : {:#?}, {:?}", text.chunks[0].text, bbox);
+                log::debug!("Node::Text : {:#?}, {:?}", text.chunks[0].text, bbox);
                 // text_bboxes.push(bbox.to_rect());
+            }
+
+            if let Some(bbox) = node.abs_bounding_box() {
+                bboxes.push(bbox);
+
+                if let Some(stroke_bbox) = node.abs_stroke_bounding_box() {
+                    if bbox != stroke_bbox.to_rect() {
+                        stroke_bboxes.push(stroke_bbox.to_rect());
+                    }
+                }
             }
         }
 
         if let resvg::usvg::Node::Path(ref path) = *node.borrow() {
-            println!("Node::Path");
-        }
-
-        if let Some(bbox) = node.abs_bounding_box() {
-            bboxes.push(bbox);
-
-            if let Some(stroke_bbox) = node.abs_stroke_bounding_box() {
-                if bbox != stroke_bbox.to_rect() {
-                    stroke_bboxes.push(stroke_bbox.to_rect());
-                }
-            }
+            log::debug!("Node::Path");
         }
     }
 }

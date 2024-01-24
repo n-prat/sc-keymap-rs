@@ -33,7 +33,12 @@ struct Button {
 impl Button {
     pub(super) fn get_id(&self) -> u8 {
         match &self.kind {
-            ButtonKind::Physical { id, kind } => *id,
+            ButtonKind::Physical {
+                id,
+                kind,
+                info,
+                extended_desc,
+            } => *id,
             ButtonKind::Virtual { id } => *id,
         }
     }
@@ -50,6 +55,16 @@ impl TryFrom<VkbXmlButton> for Button {
     }
 }
 
+/// That is what will be printed on the final png/pdf/svg
+#[derive(PartialEq, Debug)]
+struct PhysicalButtonWithDesc {
+    id: u8,
+    /// Usually this will be extracted from the "b2.m7" xml field; up to the first "\r\n"
+    info: String,
+    /// cf `extract_button_id_from_inner_html`
+    extended_desc: String,
+}
+
 /// This is the final mapping, correspondonding to the XML!
 ///
 /// It does NOT contain any game keybind!
@@ -64,6 +79,27 @@ pub(crate) struct ButtonMap {
     /// Note that is NOT detected by VkbDevCfg, probably because this NOT (necessarily) a bug;
     /// this is mostly a "waste of space".
     map_virtual_button_to_parent: HashMap<u8, Vec<Button>>,
+    physical_buttons_with_desc: Vec<PhysicalButtonWithDesc>,
+}
+
+impl ButtonMap {
+    pub(crate) fn inject_user_provided_desc(
+        &mut self,
+        vkb_user_provided_data: csv::Reader<std::fs::File>,
+    ) {
+        let csv_records: Vec<_> = vkb_user_provided_data.into_records().collect();
+
+        for button_with_desc in &mut self.physical_buttons_with_desc {
+            let current_desc = button_with_desc.extended_desc.to_string();
+            let user_desc = csv_records[button_with_desc.id as usize - 1]
+                .as_ref()
+                .expect("MISSING CSV RECORD")
+                .get(1)
+                .expect("MISSING CSV COLUMN")
+                .to_string();
+            button_with_desc.extended_desc = format!("{current_desc} [{user_desc}]");
+        }
+    }
 }
 
 impl TryFrom<VkbReport> for ButtonMap {
@@ -73,6 +109,7 @@ impl TryFrom<VkbReport> for ButtonMap {
     // warnings to find where the duplicates originate
     fn try_from(vkb_report: VkbReport) -> Result<Self, Self::Error> {
         let mut map_virtual_button_to_parent: HashMap<u8, Vec<Button>> = HashMap::new();
+        let mut physical_buttons_with_desc = Vec::new();
 
         let vkb_buttons = vkb_report.get_all_buttons();
 
@@ -85,8 +122,19 @@ impl TryFrom<VkbReport> for ButtonMap {
             match Button::try_from(vkb_button) {
                 Ok(button) => {
                     match &button.kind {
-                        ButtonKind::Physical { id, kind } => {
+                        ButtonKind::Physical {
+                            id,
+                            kind,
+                            info,
+                            extended_desc,
+                        } => {
                             current_parent = Some(button.clone());
+
+                            physical_buttons_with_desc.push(PhysicalButtonWithDesc {
+                                id: *id,
+                                info: info.to_string(),
+                                extended_desc: extended_desc.to_string(),
+                            });
                         }
                         ButtonKind::Virtual { id } => {
                             map_virtual_button_to_parent
@@ -107,6 +155,7 @@ impl TryFrom<VkbReport> for ButtonMap {
 
         Ok(Self {
             map_virtual_button_to_parent,
+            physical_buttons_with_desc,
         })
     }
 }
@@ -115,7 +164,12 @@ impl TryFrom<VkbReport> for ButtonMap {
 enum ButtonKind {
     /// This matches a "b2" field in xml
     /// To get the ID we need to parse the desc...
-    Physical { id: u8, kind: PhysicalButtonKind },
+    Physical {
+        id: u8,
+        kind: PhysicalButtonKind,
+        info: String,
+        extended_desc: String,
+    },
     /// Virtual/Logical
     /// This matches a "b3" field in xml
     /// In this case the "m8" field directly contains the ID, no parsing needed.
@@ -239,9 +293,9 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, Vk
 
     let fragment = Html::parse_fragment(desc_xml_escaped);
 
-    // println!("parse_desc_xml fragment : {:#?}", fragment.tree);
+    // log::debug!("parse_desc_xml fragment : {:#?}", fragment.tree);
     // for node in fragment.tree.nodes() {
-    //     println!("node : {:#?}", node);
+    //     log::debug!("node : {:#?}", node);
     // }
 
     // the selected inner_html should contain something like:
@@ -249,9 +303,9 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, Vk
     let b_selector = Selector::parse("b").unwrap();
     let b_nodes: Vec<_> = fragment.select(&b_selector).collect();
 
-    // println!("b_nodes [{}] : {:?}", b_nodes.len(), b_nodes);
+    // log::debug!("b_nodes [{}] : {:?}", b_nodes.len(), b_nodes);
     // for b_node in b_nodes.iter() {
-    //     println!("b_node : inner_html : {:#?}", b_node.inner_html());
+    //     log::debug!("b_node : inner_html : {:#?}", b_node.inner_html());
     // }
 
     // Only extract the ID from the FIRST "b" node
@@ -402,6 +456,10 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, Vk
         kind: ButtonKind::Physical {
             id: button_id_info.id,
             kind,
+            info: button_id_info
+                .info
+                .expect(format!("MISSING INFO FOR BUTTON {}", button_id_info.id).as_str()),
+            extended_desc: remaining_b_node_inner_html,
         },
     };
 
@@ -528,8 +586,9 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 1,
-                        kind: PhysicalButtonKind::Encoder,
-                    },
+                        kind: PhysicalButtonKind::Encoder
+                        , info: "(E1)".to_string(), extended_desc: "#2  - Encoder 2/4".to_string()
+                    }
                 },
             ),
             (
@@ -538,7 +597,8 @@ mod tests {
                     kind: ButtonKind::Physical {
                         id: 3,
                         kind: PhysicalButtonKind::Momentary{ shift: None },
-                    },
+                        info: "(E2)".to_string(), extended_desc: "- Button with momentary action".to_string()
+                    }
                 },
             ),
             (
@@ -546,8 +606,8 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 4,
-                        kind: PhysicalButtonKind::Momentary{ shift: None },
-                    },
+                        kind: PhysicalButtonKind::Momentary{ shift: None }, info: "".to_string(), extended_desc: "- Button with momentary action".to_string()
+                    }
                 },
             ),
             (
@@ -555,8 +615,8 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 5,
-                        kind: PhysicalButtonKind::Tempo(TempoKind::Tempo2 { button_id_short: 5, button_id_long: 94 }),
-                    },
+                        kind: PhysicalButtonKind::Tempo(TempoKind::Tempo2 { button_id_short: 5, button_id_long: 94 }), info: "(F3)".to_string(), extended_desc: "TEMPO ".to_string()
+                    }
                 },
             ),
             (
@@ -564,8 +624,8 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 5,
-                        kind: PhysicalButtonKind::Tempo(TempoKind::Tempo3 { button_id_short: 5, button_id_long: 94, button_id_double: 95 } ),
-                    },
+                        kind: PhysicalButtonKind::Tempo(TempoKind::Tempo3 { button_id_short: 5, button_id_long: 94, button_id_double: 95 } ), info: "(F3)".to_string(), extended_desc: "TEMPO ".to_string()
+                    }
                 },
             ),
             (
@@ -573,8 +633,8 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 9,
-                        kind: PhysicalButtonKind::Momentary { shift: None },
-                    },
+                        kind: PhysicalButtonKind::Momentary { shift: None }, info: "(Fire 2-nd stage)".to_string(), extended_desc: "- Button with momentary action".to_string()
+                    }
                 },
             ),
             (
@@ -582,8 +642,8 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 10,
-                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift12 { button_id_shift1: 64, button_id_shift2: 91 }) },
-                    },
+                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift12 { button_id_shift1: 64, button_id_shift2: 91 }) }, info: "(Fire 1-st stage)".to_string(), extended_desc: "- Button with momentary action".to_string()
+                    }
                 },
             ),
             (
@@ -591,8 +651,8 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 11,
-                        kind: PhysicalButtonKind::Shift1,
-                    },
+                        kind: PhysicalButtonKind::Shift1, info: "(D1)".to_string(), extended_desc: " SHIFT1 ".to_string()
+                    }
                 },
             ),
             (
@@ -600,8 +660,8 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 12,
-                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift12 { button_id_shift1: 13, button_id_shift2: 90 }) },
-                    },
+                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift12 { button_id_shift1: 13, button_id_shift2: 90 }) }, info: "(A2)".to_string(), extended_desc: "- Button with momentary action".to_string()
+                    }
                 },
             ),
             (
@@ -609,8 +669,8 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 18,
-                        kind: PhysicalButtonKind::Pov { direction: "Down".to_string() },
-                    },
+                        kind: PhysicalButtonKind::Pov { direction: "Down".to_string() }, info: "(A1 down)".to_string(), extended_desc: "Point of view Switch".to_string()
+                    }
                 },
             ),
             (
@@ -618,7 +678,7 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 35,
-                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift1 { button_id_shift1: 37 }) },
+                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift1 { button_id_shift1: 37 }) }, info: "(Rapid fire forward)".to_string(), extended_desc: "- Button with momentary action".to_string()
                     },
                 },
             ),
@@ -627,8 +687,9 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 37,
-                        kind: PhysicalButtonKind::Undefined,
-                    },
+                        kind: PhysicalButtonKind::Undefined
+                        , info: "".to_string(), extended_desc: " No defined function".to_string()
+                    }
                 },
             ),
             (
@@ -636,7 +697,7 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 9,
-                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift12 { button_id_shift1: 63, button_id_shift2: 92 }) },
+                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift12 { button_id_shift1: 63, button_id_shift2: 92 }) }, info: "(Fire 2-nd stage)".to_string(), extended_desc: "- Button with momentary action".to_string()
                     },
                 },
             ),

@@ -109,7 +109,7 @@ pub(crate) fn parse_keybind(xml_path: PathBuf) -> Result<(), KeybindError> {
     let xml_data: XmlFull =
         quick_xml::de::from_str(&xml_str).map_err(|err| KeybindError::DeError { err })?;
 
-    println!("keybinds: {:?}", xml_data);
+    log::debug!("keybinds: {:?}", xml_data);
 
     //TODO? https://github.com/tafia/quick-xml/blob/9fb797e921d83467c89e78de7de6511801f335b1/examples/read_buffered.rs#L10
     // let mut buf = Vec::new();
@@ -124,7 +124,7 @@ pub(crate) fn parse_keybind(xml_path: PathBuf) -> Result<(), KeybindError> {
     //                 .decoder()
     //                 .decode(name.as_ref())
     //                 .map_err(|_| KeybindError::Unknown)?;
-    //             println!("read start event {:?}", name.as_ref());
+    //             log::debug!("read start event {:?}", name.as_ref());
     //             count += 1;
     //         }
     //         Ok(Event::Eof) => break, // exits the loop when reaching end of file
@@ -133,7 +133,7 @@ pub(crate) fn parse_keybind(xml_path: PathBuf) -> Result<(), KeybindError> {
     //     }
     // }
 
-    // println!("read {} start events in total", count);
+    // log::debug!("read {} start events in total", count);
 
     Ok(())
 }

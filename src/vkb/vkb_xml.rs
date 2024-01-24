@@ -195,7 +195,7 @@ impl VkbReport {
         // let xml_str = Self::preprocess_fix_pages(&xml_str);
 
         let vkb_report: VkbReport = quick_xml::de::from_str(&xml_str).map_err(|err| {
-            println!("report error: {:?}", err);
+            log::error!("report error: {:?}", err);
             VkbError::Unknown
         })?;
 
@@ -228,12 +228,12 @@ impl VkbReport {
                 Ok(Event::Start(ref element)) => match element.name().as_ref() {
                     b"b2" => {
                         // let buf_clone = buf.clone();
-                        // println!("parsing b2: {:?}", buf.clone());
+                        // log::debug!("parsing b2: {:?}", buf.clone());
                         let attrs = element
                             .attributes()
                             .map(|a| a.unwrap().value)
                             .collect::<Vec<_>>();
-                        println!("b2 attrs: {:?}", attrs);
+                        log::debug!("b2 attrs: {:?}", attrs);
 
                         // reader.read_to_end(element.name());
 
@@ -259,12 +259,12 @@ impl VkbReport {
                                                 std::str::from_utf8(&val).unwrap().to_string()
                                             })
                                             .collect::<Vec<_>>();
-                                        println!("b2 nested attrs_value: {:?}", attrs_value);
-                                        println!("b2 nested attrs_keys: {:?}", attrs_keys);
+                                        log::debug!("b2 nested attrs_value: {:?}", attrs_value);
+                                        log::debug!("b2 nested attrs_keys: {:?}", attrs_keys);
 
                                         let attrs =
                                             element.try_get_attribute("m7").unwrap().unwrap();
-                                        println!("b2 attrs: {:?}", attrs);
+                                        log::debug!("b2 attrs: {:?}", attrs);
                                     }
                                     b"w:tc" => {
                                         // stats.rows[row_index].push(
@@ -285,7 +285,7 @@ impl VkbReport {
                             }
                         }
 
-                        println!(
+                        log::debug!(
                             "b2: {:?}, nested: {:?}",
                             std::str::from_utf8(&buf).unwrap(),
                             std::str::from_utf8(&buf_nested).unwrap()
@@ -296,11 +296,11 @@ impl VkbReport {
                         //     Ok(b2) => {
                         //         // Add the deserialized B2 instance to the PreviewPages.
                         //         // previewpages.page0.b.push(Page0Item::b2(b2));
-                        //         println!("b2 ok: {:?}", b2);
+                        //         log::debug!("b2 ok: {:?}", b2);
                         //     }
                         //     Err(err) => {
                         //         // Handle the special case: peek into the next "b2" element and merge the instances.
-                        //         println!(
+                        //         log::debug!(
                         //             "b2 error: {}, data: {:?}",
                         //             err,
                         //             std::str::from_utf8(&buf).unwrap()
@@ -391,7 +391,7 @@ impl VkbReport {
         //                     .unwrap();
         //                 let m8_str = String::from_utf8_lossy(&m8_buf);
         //                 let m8: B3 = from_str(&m8_str).unwrap();
-        //                 println!("{:?}", m8);
+        //                 log::debug!("{:?}", m8);
 
         //                 // todo!()
         //             }
