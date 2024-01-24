@@ -146,6 +146,12 @@ impl TryFrom<VkbReport> for ButtonMap {
                                 })
                                 // inserted = nothing to do
                                 .or_insert(vec![current_parent.clone().unwrap().clone()]);
+
+                            // NOTE: NOT an error; it can just happen; for example right now for the 8 way ministick switch
+                            // they entries have the same physical ID and logical ID
+                            if current_parent.clone().unwrap().get_id() == *id {
+                                log::info!("Virtual button and parent (physical) button have the same ID??? {id}");
+                            }
                         }
                     };
                 }
