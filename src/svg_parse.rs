@@ -292,7 +292,7 @@ mod tests {
         svg_parse(
             concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/tests/data/VKB-Sim Gladiator NXT L.svg"
+                "/bindings/VKB-Sim Gladiator NXT L.svg"
             )
             .into(),
             concat!(env!("CARGO_MANIFEST_DIR"), "/out.png").into(),

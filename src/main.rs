@@ -27,13 +27,16 @@ pub struct Args {
     #[clap(long)]
     pub vkb_report: Option<PathBuf>,
 
+    #[clap(long)]
+    pub vkb_template_path: Option<PathBuf>,
+
     /// Optional path to a csv button_id -> user provided description
     #[clap(long)]
     pub vkb_user_provided_data_path: Option<PathBuf>,
 
-    /// Optional output directory. If omitted the directory of the PDF file will be used.
+    /// Optional output png path; only applicable if `vkb_template_path`
     #[clap(short, long)]
-    pub output: Option<PathBuf>,
+    pub vkb_output_png_path: Option<PathBuf>,
 
     /// Optional pretty print output.
     #[clap(short, long)]
@@ -88,15 +91,16 @@ fn main() -> Result<(), Error> {
         None => None,
     };
 
-    // TODO add clap args
-    svg_parse::svg_parse(
-        concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/tests/data/VKB-Sim Gladiator NXT L.svg"
-        )
-        .into(),
-        concat!(env!("CARGO_MANIFEST_DIR"), "/out.png").into(),
-    );
+    match args.vkb_template_path {
+        Some(vkb_template_path) => {
+            svg_parse::svg_parse(
+                vkb_template_path,
+                args.vkb_output_png_path
+                    .expect("vkb_template_path set but missing vkb_output_png_path"),
+            );
+        }
+        None => println!("SKIP : no vkb_template_path path given"),
+    }
 
     // pdf_parse::pdf_read(input_paths[0].clone().into(), "output.txt".into());
 
