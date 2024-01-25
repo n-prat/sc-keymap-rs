@@ -49,7 +49,7 @@ fn main() -> Result<(), Error> {
 
     let args = Args::parse_args();
 
-    let start_time = Instant::now();
+    let _start_time = Instant::now();
     // let input_paths: Vec<_> = args
     //     .input_paths
     //     .iter()
@@ -73,7 +73,7 @@ fn main() -> Result<(), Error> {
     //     pdf_form::list_forms(&pdf_path);
     // }
 
-    let game_buttons_mapping = match args.sc_mapping {
+    let _game_buttons_mapping = match args.sc_mapping {
         Some(sc_mapping) => parse_keybind_xml::parse_keybind(sc_mapping).ok(),
         None => {
             println!("SKIP : no sc_mapping path given");
@@ -83,7 +83,7 @@ fn main() -> Result<(), Error> {
 
     let vkb_user_provided_data = match args.vkb_user_provided_data_path {
         Some(vkb_user_provided_data_path) => {
-            let mut rdr = csv::Reader::from_path(vkb_user_provided_data_path).unwrap();
+            let rdr = csv::Reader::from_path(vkb_user_provided_data_path).unwrap();
             Some(rdr)
         }
         None => None,
