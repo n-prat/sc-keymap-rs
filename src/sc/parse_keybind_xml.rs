@@ -116,7 +116,31 @@ pub struct GameButtonsMapping {
 }
 
 ///
-pub fn parse_keybind(xml_path: PathBuf) -> Result<GameButtonsMapping, KeybindError> {
+pub fn parse_keybind(
+    xml_path: PathBuf,
+    sc_bindings_to_ignore: Option<csv::Reader<std::fs::File>>,
+) -> Result<GameButtonsMapping, KeybindError> {
+    let binding_pairs_to_ignore: Vec<(String, String)> = match sc_bindings_to_ignore {
+        Some(sc_bindings_to_ignore) => {
+            let csv_records = sc_bindings_to_ignore
+                .into_records()
+                .into_iter()
+                .map(|record| {
+                    let record = record.unwrap();
+                    let left = record.get(0).unwrap();
+                    let right = record.get(1).unwrap();
+
+                    (left.to_string(), right.to_string())
+                })
+                .collect();
+
+            csv_records
+        }
+        None => {
+            vec![]
+        }
+    };
+
     let xml_str =
         std::fs::read_to_string(xml_path).map_err(|err| KeybindError::ReadError { err })?;
 
@@ -172,10 +196,22 @@ pub fn parse_keybind(xml_path: PathBuf) -> Result<GameButtonsMapping, KeybindErr
                 .entry(logical_button_name.clone())
                 // NOT inserted = the virtual button was already processed!
                 .and_modify(|actions: &mut Vec<String>| {
-                    actions.push(action_name.clone());
-                    log::warn!(
-                        "keybind duplicated : {logical_button_name} used for : \"{actions:?}\""
+                    let new_pair1 = (
+                        actions.first().unwrap().to_string(),
+                        action_name.to_string(),
                     );
+                    let new_pair2 = (new_pair1.1.to_string(), new_pair1.0.to_string());
+
+                    if binding_pairs_to_ignore.contains(&new_pair1)
+                        || binding_pairs_to_ignore.contains(&new_pair2)
+                    {
+                        log::info!("skipping {new_pair1:?}");
+                    } else {
+                        actions.push(action_name.clone());
+                        log::warn!(
+                            "keybind duplicated : {logical_button_name} used for : \"{actions:?}\""
+                        );
+                    }
                 })
                 // inserted = nothing to do
                 .or_insert(vec![action_name.clone()]);
@@ -292,6 +328,7 @@ mod tests {
                 "/bindings/layout_vkb_exported.xml"
             )
             .into(),
+            None,
         )
         .unwrap();
     }
