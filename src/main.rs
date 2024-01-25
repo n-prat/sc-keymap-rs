@@ -17,6 +17,9 @@ use sc_keymap_rs::{sc::parse_keybind_xml, svg_parse, vkb};
 )]
 pub struct Args {
     #[clap(long)]
+    pub sc_bindings_to_ignore_path: Option<PathBuf>,
+
+    #[clap(long)]
     pub sc_mapping: Option<PathBuf>,
 
     #[clap(long)]
@@ -73,13 +76,23 @@ fn main() -> Result<(), Error> {
     //     pdf_form::list_forms(&pdf_path);
     // }
 
+    let sc_bindings_to_ignore = match args.sc_bindings_to_ignore_path {
+        Some(sc_bindings_to_ignore_path) => {
+            let rdr = csv::Reader::from_path(sc_bindings_to_ignore_path).unwrap();
+            Some(rdr)
+        }
+        None => None,
+    };
+
     let _game_buttons_mapping = match args.sc_mapping {
-        Some(sc_mapping) => parse_keybind_xml::parse_keybind(sc_mapping).ok(),
+        Some(sc_mapping) => parse_keybind_xml::parse_keybind(sc_mapping, sc_bindings_to_ignore).ok(),
         None => {
             println!("SKIP : no sc_mapping path given");
             None
         }
     };
+
+    ////////////////////////////////////////////////////////////////////////////
 
     let vkb_user_provided_data = match args.vkb_user_provided_data_path {
         Some(vkb_user_provided_data_path) => {

@@ -1,0 +1,9 @@
+SC binding name 1,SC binding name 2
+v_toggle_mining_mode,v_toggle_salvage_mode
+v_toggle_quantum_mode,v_toggle_qdrive_engagement
+v_attack_all,v_weapon_toggle_launch_missile
+v_afterburner,eva_boost
+v_space_brake,eva_brake
+gp_movey,v_move
+gp_rotateyaw,v_yaw
+v_salvage_toggle_fire_right,v_attack_group2
