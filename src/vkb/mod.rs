@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{num::ParseIntError, path::PathBuf};
 
 use thiserror::Error;
 
@@ -20,6 +20,8 @@ pub enum VkbError {
     Unknown,
     #[error("the xml desc `{0}` is not handled")]
     UnexpectedXmlDesc(String),
+    #[error("could not parse to integer `{err}`")]
+    ParseIntError { err: ParseIntError },
 }
 
 pub fn parse_report(xml_path: PathBuf) -> Result<VkbBindings, VkbError> {
