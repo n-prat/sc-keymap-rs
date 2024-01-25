@@ -67,7 +67,7 @@ pub(super) struct B2 {
 pub(super) struct M8 {
     /// This is the description; xml escaped!
     #[serde(rename = "@u")]
-    pub(super) virtual_button_id: String,
+    pub(super) _virtual_button_id: String,
 }
 
 /// Maps the description for the M3 child struct
@@ -99,7 +99,8 @@ pub(super) struct B3 {
     _t: String,
     #[serde(rename = "@h")]
     _h: String,
-    pub(super) m8: M8,
+    #[serde(rename = "m8")]
+    pub(super) _m8: M8,
     pub(super) m9: M9,
 }
 

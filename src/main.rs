@@ -22,8 +22,32 @@ pub struct Args {
     #[clap(long)]
     pub sc_mapping: Option<PathBuf>,
 
-    #[clap(long)]
-    pub vkb_report: Option<PathBuf>,
+    /// About the order: it SHOULD match the INSTANCE ID in the game mappings
+    /// example:
+    /// ```xml
+    /// <options type="joystick" instance="1"
+    ///     Product=" VKBsim Gladiator EVO  R    {0200231D-0000-0000-0000-504944564944}">
+    ///     <flight_move_yaw invert="1" />
+    /// </options>
+    /// <options type="joystick" instance="2"
+    ///     Product=" VKBsim Gladiator EVO  L    {0201231D-0000-0000-0000-504944564944}" />
+    /// <modifiers />
+    /// ```
+    /// -> You SHOULD pass the files as --vkb-reports-paths=path_to_R_stick.fp3,path_to_L_stick.fp3
+    ///
+    /// NOTE: the order in eg
+    /// ```xml
+    /// <devices>
+    ///     <keyboard instance="1" />
+    ///     <mouse instance="1" />
+    ///     <joystick instance="1" />
+    ///     <joystick instance="2" />
+    /// </devices>
+    /// ```
+    /// does NOT matter!
+    ///
+    #[clap(long, value_delimiter = ',')]
+    pub vkb_reports_paths: Option<Vec<PathBuf>>,
 
     #[clap(long)]
     pub vkb_template_path: Option<PathBuf>,
@@ -85,7 +109,9 @@ fn main() -> Result<(), Error> {
     };
 
     let _game_buttons_mapping = match args.sc_mapping {
-        Some(sc_mapping) => parse_keybind_xml::parse_keybind(sc_mapping, sc_bindings_to_ignore).ok(),
+        Some(sc_mapping) => {
+            parse_keybind_xml::parse_keybind(sc_mapping, sc_bindings_to_ignore).ok()
+        }
         None => {
             println!("SKIP : no sc_mapping path given");
             None
@@ -93,14 +119,6 @@ fn main() -> Result<(), Error> {
     };
 
     ////////////////////////////////////////////////////////////////////////////
-
-    let vkb_user_provided_data = match args.vkb_user_provided_data_path {
-        Some(vkb_user_provided_data_path) => {
-            let rdr = csv::Reader::from_path(vkb_user_provided_data_path).unwrap();
-            Some(rdr)
-        }
-        None => None,
-    };
 
     match args.vkb_template_path {
         Some(vkb_template_path) => {
@@ -113,17 +131,44 @@ fn main() -> Result<(), Error> {
         None => println!("SKIP : no vkb_template_path path given"),
     }
 
-    // pdf_parse::pdf_read(input_paths[0].clone().into(), "output.txt".into());
+    let joysticks_mappings = match args.vkb_reports_paths {
+        Some(vkb_reports_paths) => {
+            let mut res = vec![];
+            for vkb_report_path in vkb_reports_paths {
+                let vkb_user_provided_data = match args.vkb_user_provided_data_path {
+                    Some(ref vkb_user_provided_data_path) => {
+                        let rdr = csv::Reader::from_path(vkb_user_provided_data_path).unwrap();
+                        Some(rdr)
+                    }
+                    None => None,
+                };
 
-    match args.vkb_report {
-        Some(vkb_report) => {
-            let vkb_report = vkb::parse_report(vkb_report).unwrap();
-            log::info!("vkb_report : {:#?}", vkb_report);
+                let vkb_report = vkb::parse_report(vkb_report_path).unwrap();
+                log::info!("vkb_report : {:#?}", vkb_report);
 
-            let vkb_buttons = vkb::check_report(vkb_report, vkb_user_provided_data);
-            log::info!("vkb_buttons : {:#?}", vkb_buttons);
+                let vkb_buttons = vkb::check_report(vkb_report, vkb_user_provided_data);
+                log::info!("vkb_buttons : {:#?}", vkb_buttons);
+
+                res.push(vkb_buttons);
+            }
+
+            Some(res)
         }
-        None => println!("SKIP : no vkb_report path given"),
+        None => {
+            println!("SKIP : no vkb_reports_paths given");
+            None
+        }
+    };
+
+    match joysticks_mappings {
+        Some(joysticks_mappings) => {
+            if joysticks_mappings.len() == 2 {
+                if joysticks_mappings[0] != joysticks_mappings[1] {
+                    log::warn!("2 joystick mappings processed -> they are different!");
+                }
+            }
+        }
+        None => {}
     }
 
     Ok(())
