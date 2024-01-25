@@ -6,7 +6,7 @@ mod vkb_button;
 mod vkb_xml;
 
 #[derive(Debug)]
-pub(super) struct VkbBindings {
+pub struct VkbBindings {
     vkb_report: vkb_xml::VkbReport,
 }
 
@@ -22,13 +22,13 @@ pub enum VkbError {
     UnexpectedXmlDesc(String),
 }
 
-pub(crate) fn parse_report(xml_path: PathBuf) -> Result<VkbBindings, VkbError> {
+pub fn parse_report(xml_path: PathBuf) -> Result<VkbBindings, VkbError> {
     let vkb_report = vkb_xml::VkbReport::new(xml_path)?;
 
     Ok(VkbBindings { vkb_report })
 }
 
-pub(crate) fn check_report(
+pub fn check_report(
     vkb_binding: VkbBindings,
     vkb_user_provided_data: Option<csv::Reader<std::fs::File>>,
 ) -> vkb_button::ButtonMap {
