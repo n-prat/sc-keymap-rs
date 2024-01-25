@@ -6,7 +6,7 @@
 pub(crate) enum TempoKind {
     /// Short+Long press
     /// "second line pulse length is equal to T_Tgl value in no matter to real depressing time"
-    Tempo1,
+    _Tempo1,
     /// Short+Long press
     /// "second line pulse length is equal to button depressing time"
     Tempo2 {
@@ -95,9 +95,9 @@ impl Button {
         match &self.kind {
             ButtonKind::Physical {
                 id,
-                kind,
-                info,
-                extended_desc,
+                kind: _,
+                info: _,
+                extended_desc: _,
             } => *id,
             ButtonKind::Virtual { id } => *id,
         }

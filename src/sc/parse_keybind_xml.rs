@@ -2,7 +2,7 @@
 
 use std::{collections::HashMap, path::PathBuf};
 
-use quick_xml::{events::Event, DeError};
+use quick_xml::DeError;
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -59,7 +59,7 @@ struct XmlActionName {
 #[derive(Deserialize, Debug)]
 struct XmlActionMap {
     #[serde(rename = "@name")]
-    name: String,
+    _name: String,
     #[serde(rename = "$value")]
     action: Vec<XmlActionName>,
 }
@@ -70,17 +70,17 @@ struct XmlCustomisationUIHeader {}
 #[derive(Deserialize, Debug)]
 struct XmlDeviceOptions {
     #[serde(rename = "@name")]
-    name: String,
+    _name: String,
 }
 
 #[derive(Deserialize, Debug)]
 struct XmlOptions {
     #[serde(rename = "@type")]
-    option_type: String,
+    _option_type: String,
     #[serde(rename = "@instance")]
-    instance: String,
+    _instance: String,
     #[serde(rename = "@Product")]
-    product: String,
+    _product: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -90,13 +90,13 @@ struct XmlModifiers {}
 #[serde(rename = "@ActionMaps")]
 struct XmlFull {
     #[serde(rename = "CustomisationUIHeader")]
-    customisation_uiheader: XmlCustomisationUIHeader,
+    _customisation_uiheader: XmlCustomisationUIHeader,
     #[serde(rename = "deviceoptions")]
-    device_options: Vec<XmlDeviceOptions>,
+    _device_options: Vec<XmlDeviceOptions>,
     #[serde(rename = "options")]
-    options: Vec<XmlOptions>,
+    _options: Vec<XmlOptions>,
     #[serde(rename = "modifiers")]
-    modifiers: XmlModifiers,
+    _modifiers: XmlModifiers,
     #[serde(rename = "actionmap")]
     actionmap: Vec<XmlActionMap>,
 }
@@ -216,14 +216,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_XmlRebindInput() {
+    fn test_parse_xml_rebind_input() {
         let xml_str = r#"<rebind input="js1_button2"/>"#;
 
         quick_xml::de::from_str::<XmlRebindInput>(xml_str).unwrap();
     }
 
     #[test]
-    fn test_parse_XmlActionName() {
+    fn test_parse_xml_action_name() {
         let xml_str = r#"
         <action name="v_weapon_toggle_launch_missile">
             <rebind input="js1_button2"/>
@@ -234,7 +234,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_XmlActionMap() {
+    fn test_parse_xml_action_map() {
         let xml_str = r#"
         <actionmap name="spaceship_missiles">
         <action name="v_weapon_toggle_launch_missile">
@@ -247,7 +247,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_XmlActionMap_multiple() {
+    fn test_parse_xml_action_map_multiple() {
         let xml_str = r#"
         <actionmap name="spaceship_missiles">
         <action name="v_weapon_toggle_launch_missile">
@@ -263,7 +263,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_XmlFull() {
+    fn test_parse_xml_full() {
         let xml_str = r#"
         <ActionMaps version="1" optionsVersion="2" rebindVersion="2" profileName="vkb_custom_v1">
         <actionmap name="player_input_optical_tracking">

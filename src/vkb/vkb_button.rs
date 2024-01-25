@@ -4,15 +4,11 @@
 //!
 
 use std::collections::HashMap;
-use std::collections::HashSet;
 
-use log::warn;
 use scraper::ElementRef;
 use scraper::Html;
 use scraper::Selector;
-use serde::Deserialize;
 
-use super::vkb_xml::Page0Item;
 use super::vkb_xml::VkbReport;
 use super::vkb_xml::VkbXmlButton;
 use super::vkb_xml::B2;
@@ -100,7 +96,7 @@ impl TryFrom<VkbReport> for JoystickButtonsMapping {
                     match &button.kind {
                         ButtonKind::Physical {
                             id,
-                            kind,
+                            kind: _,
                             info,
                             extended_desc,
                         } => {
@@ -117,7 +113,7 @@ impl TryFrom<VkbReport> for JoystickButtonsMapping {
                                 .entry(id.clone())
                                 // NOT inserted = the virtual button was already processed!
                                 .and_modify(|parents| {
-                                    warn!("virtual button duplicated : {}", id);
+                                    log::warn!("virtual button duplicated : {}", id);
                                     parents.push(current_parent.clone().unwrap().clone());
                                 })
                                 // inserted = nothing to do
@@ -131,7 +127,7 @@ impl TryFrom<VkbReport> for JoystickButtonsMapping {
                         }
                     };
                 }
-                Err(err) => todo!(),
+                Err(_err) => todo!(),
             }
         }
 
@@ -672,7 +668,7 @@ mod tests {
     }
 
     #[test]
-    fn test_button_map_vkb_report_R() {
+    fn test_button_map_vkb_report_r() {
         let vkb_report = VkbReport::new(
             concat!(env!("CARGO_MANIFEST_DIR"), "/bindings/vkb_report_R.fp3").into(),
         )
@@ -682,7 +678,7 @@ mod tests {
     }
 
     #[test]
-    fn test_button_map_vkb_report_L() {
+    fn test_button_map_vkb_report_l() {
         let vkb_report = VkbReport::new(
             concat!(env!("CARGO_MANIFEST_DIR"), "/bindings/vkb_report_L.fp3").into(),
         )

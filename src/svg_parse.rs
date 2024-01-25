@@ -1,11 +1,7 @@
-use std::borrow::Borrow;
-use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use usvg::{fontdb, TreeParsing, TreePostProc};
-
-use resvg::usvg::Rect;
+use usvg::{TreeParsing, TreePostProc};
 
 use resvg::usvg;
 
@@ -205,7 +201,7 @@ pub fn svg_parse(input_svg_path: PathBuf, output_png_path: PathBuf) {
         ..usvg::Stroke::default()
     });
 
-    let stroke2 = Some(usvg::Stroke {
+    let _stroke2 = Some(usvg::Stroke {
         paint: usvg::Paint::Color(usvg::Color::new_rgb(0, 200, 0)),
         opacity: usvg::Opacity::new_clamped(0.5),
         ..usvg::Stroke::default()
@@ -277,7 +273,7 @@ fn collect_bboxes(
             }
         }
 
-        if let resvg::usvg::Node::Path(ref path) = *node.borrow() {
+        if let resvg::usvg::Node::Path(ref _path) = *node {
             log::debug!("Node::Path");
         }
     }
@@ -288,7 +284,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_button_map_vkb_report_L() {
+    fn test_button_map_vkb_report_l() {
         svg_parse(
             concat!(
                 env!("CARGO_MANIFEST_DIR"),

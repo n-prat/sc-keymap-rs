@@ -4,10 +4,8 @@
 //!
 // TODO see also https://github.com/tafia/quick-xml/blob/master/examples/read_nodes_serde.rs
 
-use std::{fs::read, path::PathBuf};
+use std::path::PathBuf;
 
-use log::error;
-use quick_xml::events::Event;
 use serde::Deserialize;
 
 use super::VkbError;
@@ -98,9 +96,9 @@ pub(super) struct M9 {
 #[derive(Deserialize, Debug, Clone)]
 pub(super) struct B3 {
     #[serde(rename = "@t")]
-    t: String,
+    _t: String,
     #[serde(rename = "@h")]
-    h: String,
+    _h: String,
     pub(super) m8: M8,
     pub(super) m9: M9,
 }
@@ -118,13 +116,19 @@ type B6 = ();
 /// thanks phind.com
 #[derive(Deserialize, Debug)]
 pub(super) enum Page0Item {
-    b1(B1),
+    #[serde(rename = "b1")]
+    B1(B1),
     TfrxNullBand(TfrxNullBand),
-    b2(B2),
-    b3(B3),
-    b4(B4),
-    b5(B5),
-    b6(B6),
+    #[serde(rename = "b2")]
+    B2(B2),
+    #[serde(rename = "b3")]
+    B3(B3),
+    #[serde(rename = "b4")]
+    B4(B4),
+    #[serde(rename = "b5")]
+    B5(B5),
+    #[serde(rename = "b6")]
+    B6(B6),
 }
 
 /// Maps the per-page structure of B2/B3
@@ -202,209 +206,204 @@ impl VkbReport {
         Ok(vkb_report)
     }
 
-    /// Preprocessing step
-    // TODO this is really ugly: it is parsing the whole report first; then doing again with Serde...
-    fn preprocess_fix_pages(xml_str: &str) -> String {
-        use core::convert::Infallible;
-        use quick_xml::de::{from_reader, from_str};
-        use quick_xml::name::QName;
-        use quick_xml::{events::Event, Reader};
-        use std::borrow::Cow;
-        use std::collections::HashMap;
+    // /// Preprocessing step
+    // // TODO this is really ugly: it is parsing the whole report first; then doing again with Serde...
+    // fn preprocess_fix_pages(xml_str: &str) -> String {
+    //     use quick_xml::Reader;
 
-        let mut reader = Reader::from_str(xml_str);
-        reader.trim_text(true).expand_empty_elements(true);
+    //     let mut reader = Reader::from_str(xml_str);
+    //     reader.trim_text(true).expand_empty_elements(true);
 
-        let mut buf = Vec::new();
-        let mut buf_nested = Vec::new();
+    //     let mut buf = Vec::new();
+    //     let mut buf_nested = Vec::new();
 
-        // let mut previewpages = PreviewPages {
-        //     page0: Page0 { b: vec![] },
-        // };
+    //     // let mut previewpages = PreviewPages {
+    //     //     page0: Page0 { b: vec![] },
+    //     // };
 
-        loop {
-            buf.clear();
-            match reader.read_event_into(&mut buf) {
-                Ok(Event::Start(ref element)) => match element.name().as_ref() {
-                    b"b2" => {
-                        // let buf_clone = buf.clone();
-                        // log::debug!("parsing b2: {:?}", buf.clone());
-                        let attrs = element
-                            .attributes()
-                            .map(|a| a.unwrap().value)
-                            .collect::<Vec<_>>();
-                        log::debug!("b2 attrs: {:?}", attrs);
+    //     loop {
+    //         buf.clear();
+    //         match reader.read_event_into(&mut buf) {
+    //             Ok(Event::Start(ref element)) => match element.name().as_ref() {
+    //                 b"b2" => {
+    //                     // let buf_clone = buf.clone();
+    //                     // log::debug!("parsing b2: {:?}", buf.clone());
+    //                     let attrs = element
+    //                         .attributes()
+    //                         .map(|a| a.unwrap().value)
+    //                         .collect::<Vec<_>>();
+    //                     log::debug!("b2 attrs: {:?}", attrs);
 
-                        // reader.read_to_end(element.name());
+    //                     // reader.read_to_end(element.name());
 
-                        // buf_nested.clear();
-                        loop {
-                            buf_nested.clear(); // NO! MUST be outside the loop! else always empty after exiting
-                            match reader.read_event_into(&mut buf_nested) {
-                                Ok(Event::Start(element)) => match element.name().as_ref() {
-                                    b"m7" => {
-                                        // stats.rows.push(vec![]);
-                                        // row_index = stats.rows.len() - 1;
-                                        let attrs_value = element
-                                            .attributes()
-                                            .map(|a| {
-                                                let val = a.unwrap().value.clone().to_vec();
-                                                std::str::from_utf8(&val).unwrap().to_string()
-                                            })
-                                            .collect::<Vec<_>>();
-                                        let attrs_keys = element
-                                            .attributes()
-                                            .map(|a| {
-                                                let val = a.unwrap().key.0.clone().to_vec();
-                                                std::str::from_utf8(&val).unwrap().to_string()
-                                            })
-                                            .collect::<Vec<_>>();
-                                        log::debug!("b2 nested attrs_value: {:?}", attrs_value);
-                                        log::debug!("b2 nested attrs_keys: {:?}", attrs_keys);
+    //                     // buf_nested.clear();
+    //                     loop {
+    //                         buf_nested.clear(); // NO! MUST be outside the loop! else always empty after exiting
+    //                         match reader.read_event_into(&mut buf_nested) {
+    //                             Ok(Event::Start(element)) => match element.name().as_ref() {
+    //                                 b"m7" => {
+    //                                     // stats.rows.push(vec![]);
+    //                                     // row_index = stats.rows.len() - 1;
+    //                                     let attrs_value = element
+    //                                         .attributes()
+    //                                         .map(|a| {
+    //                                             let val = a.unwrap().value.clone().to_vec();
+    //                                             std::str::from_utf8(&val).unwrap().to_string()
+    //                                         })
+    //                                         .collect::<Vec<_>>();
+    //                                     let attrs_keys = element
+    //                                         .attributes()
+    //                                         .map(|a| {
+    //                                             let val = a.unwrap().key.0.to_vec();
+    //                                             std::str::from_utf8(&val).unwrap().to_string()
+    //                                         })
+    //                                         .collect::<Vec<_>>();
+    //                                     log::debug!("b2 nested attrs_value: {:?}", attrs_value);
+    //                                     log::debug!("b2 nested attrs_keys: {:?}", attrs_keys);
 
-                                        let attrs =
-                                            element.try_get_attribute("m7").unwrap().unwrap();
-                                        log::debug!("b2 attrs: {:?}", attrs);
-                                    }
-                                    b"w:tc" => {
-                                        // stats.rows[row_index].push(
-                                        //     String::from_utf8(element.name().as_ref().to_vec())
-                                        //         .unwrap(),
-                                        // );
-                                    }
-                                    _ => {}
-                                },
-                                Ok(Event::End(element)) => {
-                                    // if element.name().as_ref() == b"m7" {
-                                    //     // found_tables.push(stats);
-                                    //     break;
-                                    // }
-                                }
-                                Ok(Event::Eof) => break,
-                                _ => {}
-                            }
-                        }
+    //                                     let attrs =
+    //                                         element.try_get_attribute("m7").unwrap().unwrap();
+    //                                     log::debug!("b2 attrs: {:?}", attrs);
+    //                                 }
+    //                                 b"w:tc" => {
+    //                                     // stats.rows[row_index].push(
+    //                                     //     String::from_utf8(element.name().as_ref().to_vec())
+    //                                     //         .unwrap(),
+    //                                     // );
+    //                                 }
+    //                                 _ => {}
+    //                             },
+    //                             Ok(Event::End(_element)) => {
+    //                                 // if element.name().as_ref() == b"m7" {
+    //                                 //     // found_tables.push(stats);
+    //                                 //     break;
+    //                                 // }
+    //                             }
+    //                             Ok(Event::Eof) => break,
+    //                             _ => {}
+    //                         }
+    //                     }
 
-                        log::debug!(
-                            "b2: {:?}, nested: {:?}",
-                            std::str::from_utf8(&buf).unwrap(),
-                            std::str::from_utf8(&buf_nested).unwrap()
-                        );
+    //                     log::debug!(
+    //                         "b2: {:?}, nested: {:?}",
+    //                         std::str::from_utf8(&buf).unwrap(),
+    //                         std::str::from_utf8(&buf_nested).unwrap()
+    //                     );
 
-                        // let b2: Result<B2, _> = quick_xml::de::from_reader::<_, B2>(buf.as_slice());
-                        // match b2 {
-                        //     Ok(b2) => {
-                        //         // Add the deserialized B2 instance to the PreviewPages.
-                        //         // previewpages.page0.b.push(Page0Item::b2(b2));
-                        //         log::debug!("b2 ok: {:?}", b2);
-                        //     }
-                        //     Err(err) => {
-                        //         // Handle the special case: peek into the next "b2" element and merge the instances.
-                        //         log::debug!(
-                        //             "b2 error: {}, data: {:?}",
-                        //             err,
-                        //             std::str::from_utf8(&buf).unwrap()
-                        //         );
-                        //         // todo!()
-                        //     }
-                        // }
-                    }
-                    _ => {}
-                },
-                Ok(Event::Eof) => break,
-                Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
-                _ => {}
-            }
-        }
+    //                     // let b2: Result<B2, _> = quick_xml::de::from_reader::<_, B2>(buf.as_slice());
+    //                     // match b2 {
+    //                     //     Ok(b2) => {
+    //                     //         // Add the deserialized B2 instance to the PreviewPages.
+    //                     //         // previewpages.page0.b.push(Page0Item::b2(b2));
+    //                     //         log::debug!("b2 ok: {:?}", b2);
+    //                     //     }
+    //                     //     Err(err) => {
+    //                     //         // Handle the special case: peek into the next "b2" element and merge the instances.
+    //                     //         log::debug!(
+    //                     //             "b2 error: {}, data: {:?}",
+    //                     //             err,
+    //                     //             std::str::from_utf8(&buf).unwrap()
+    //                     //         );
+    //                     //         // todo!()
+    //                     //     }
+    //                     // }
+    //                 }
+    //                 _ => {}
+    //             },
+    //             Ok(Event::Eof) => break,
+    //             Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+    //             _ => {}
+    //         }
+    //     }
 
-        xml_str.to_owned()
+    //     xml_str.to_owned()
 
-        // let mut settings: HashMap<String, String>;
+    //     // let mut settings: HashMap<String, String>;
 
-        // loop {
-        //     let event = reader.read_event_into(&mut buf).map_err(|err| todo!())?;
+    //     // loop {
+    //     //     let event = reader.read_event_into(&mut buf).map_err(|err| todo!())?;
 
-        //     match event {
-        //         Event::Start(element) => match element.name().as_ref() {
-        //
-        //                 // Note: real app would handle errors with good defaults or halt program with nice message
-        //                 // This illustrates decoding an attribute's key and value with error handling
-        //                 settings = element
-        //                     .attributes()
-        //                     .map(|attr_result| {
-        //                         match attr_result {
-        //                             Ok(a) => {
-        //                                 let key = reader.decoder().decode(a.key.local_name().as_ref())
-        //                                     .or_else(|err| {
-        //                                         dbg!("unable to read key in DefaultSettings attribute {:?}, utf8 error {:?}", &a, err);
-        //                                         Ok::<Cow<'_, str>, Infallible>(std::borrow::Cow::from(""))
-        //                                     })
-        //                                     .unwrap().to_string();
-        //                                 let value = a.decode_and_unescape_value(&reader).or_else(|err| {
-        //                                         dbg!("unable to read key in DefaultSettings attribute {:?}, utf8 error {:?}", &a, err);
-        //                                         Ok::<Cow<'_, str>, Infallible>(std::borrow::Cow::from(""))
-        //                                 }).unwrap().to_string();
-        //                                 (key, value)
-        //                             },
-        //                             Err(err) => {
-        //                                  dbg!("unable to read key in DefaultSettings, err = {:?}", err);
-        //                                 (String::new(), String::new())
-        //                             }
-        //                         }
-        //                     })
-        //                     .collect();
-        //                 // assert_eq!(settings["Language"], "es");
-        //                 // assert_eq!(settings["Greeting"], "HELLO");
-        //                 reader.read_to_end(element.name()).map_err(|err| todo!())?;
-        //             }
-        //             b"b3" => {
-        //                 // translations.push(B3::new_from_element(&mut reader, element)?);
-        //                 // B3::from(element);
-        //                 // let b3: B3 = from_str("aaa").map_err(|err| todo!())?;
-        //                 // let b3: B3 = from_reader(reader.clone().into_inner()).map_err(|err| {
-        //                 //     error!("error: {}", err);
-        //                 //     // todo!()
-        //                 //     VkbError::Unknown
-        //                 // })?;
-        //                 // let span = reader.read_to_end(element.name()).map_err(|err| todo!())?;
-        //                 // let text = reader.decoder().decode(&reader.into_inner()[span]);
+    //     //     match event {
+    //     //         Event::Start(element) => match element.name().as_ref() {
+    //     //
+    //     //                 // Note: real app would handle errors with good defaults or halt program with nice message
+    //     //                 // This illustrates decoding an attribute's key and value with error handling
+    //     //                 settings = element
+    //     //                     .attributes()
+    //     //                     .map(|attr_result| {
+    //     //                         match attr_result {
+    //     //                             Ok(a) => {
+    //     //                                 let key = reader.decoder().decode(a.key.local_name().as_ref())
+    //     //                                     .or_else(|err| {
+    //     //                                         dbg!("unable to read key in DefaultSettings attribute {:?}, utf8 error {:?}", &a, err);
+    //     //                                         Ok::<Cow<'_, str>, Infallible>(std::borrow::Cow::from(""))
+    //     //                                     })
+    //     //                                     .unwrap().to_string();
+    //     //                                 let value = a.decode_and_unescape_value(&reader).or_else(|err| {
+    //     //                                         dbg!("unable to read key in DefaultSettings attribute {:?}, utf8 error {:?}", &a, err);
+    //     //                                         Ok::<Cow<'_, str>, Infallible>(std::borrow::Cow::from(""))
+    //     //                                 }).unwrap().to_string();
+    //     //                                 (key, value)
+    //     //                             },
+    //     //                             Err(err) => {
+    //     //                                  dbg!("unable to read key in DefaultSettings, err = {:?}", err);
+    //     //                                 (String::new(), String::new())
+    //     //                             }
+    //     //                         }
+    //     //                     })
+    //     //                     .collect();
+    //     //                 // assert_eq!(settings["Language"], "es");
+    //     //                 // assert_eq!(settings["Greeting"], "HELLO");
+    //     //                 reader.read_to_end(element.name()).map_err(|err| todo!())?;
+    //     //             }
+    //     //             b"b3" => {
+    //     //                 // translations.push(B3::new_from_element(&mut reader, element)?);
+    //     //                 // B3::from(element);
+    //     //                 // let b3: B3 = from_str("aaa").map_err(|err| todo!())?;
+    //     //                 // let b3: B3 = from_reader(reader.clone().into_inner()).map_err(|err| {
+    //     //                 //     error!("error: {}", err);
+    //     //                 //     // todo!()
+    //     //                 //     VkbError::Unknown
+    //     //                 // })?;
+    //     //                 // let span = reader.read_to_end(element.name()).map_err(|err| todo!())?;
+    //     //                 // let text = reader.decoder().decode(&reader.into_inner()[span]);
 
-        //                 // FAIL: this contains only the inner part
-        //                 // <s1 />
-        //                 // <p3 w="113" h="22" ImageIndex="24" Transparent="1" />
-        //                 // <m8 u="9" />
-        //                 // <s2 />
-        //                 // <m9 u="&#60;b&#62;#9 &#60;/b&#62; Joystick button : #2" />
-        //                 // <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
-        //                 //     ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />")
-        //                 // let text = reader.read_text(element.name()).unwrap();
-        //                 // let end = element.name().to_end().into_owned();
-        //                 // let text = reader.read_to_end(element.name()).unwrap();
+    //     //                 // FAIL: this contains only the inner part
+    //     //                 // <s1 />
+    //     //                 // <p3 w="113" h="22" ImageIndex="24" Transparent="1" />
+    //     //                 // <m8 u="9" />
+    //     //                 // <s2 />
+    //     //                 // <m9 u="&#60;b&#62;#9 &#60;/b&#62; Joystick button : #2" />
+    //     //                 // <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
+    //     //                 //     ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />")
+    //     //                 // let text = reader.read_text(element.name()).unwrap();
+    //     //                 // let end = element.name().to_end().into_owned();
+    //     //                 // let text = reader.read_to_end(element.name()).unwrap();
 
-        //                 // let b3: B3 = from_str(&text).map_err(|err| todo!())?;
+    //     //                 // let b3: B3 = from_str(&text).map_err(|err| todo!())?;
 
-        //                 // serde deserialization
-        //                 let mut m8_buf = Vec::new();
-        //                 reader
-        //                     .read_event_into(&mut m8_buf)
-        //                     .map_err(|err| todo!())
-        //                     .unwrap();
-        //                 let m8_str = String::from_utf8_lossy(&m8_buf);
-        //                 let m8: B3 = from_str(&m8_str).unwrap();
-        //                 log::debug!("{:?}", m8);
+    //     //                 // serde deserialization
+    //     //                 let mut m8_buf = Vec::new();
+    //     //                 reader
+    //     //                     .read_event_into(&mut m8_buf)
+    //     //                     .map_err(|err| todo!())
+    //     //                     .unwrap();
+    //     //                 let m8_str = String::from_utf8_lossy(&m8_buf);
+    //     //                 let m8: B3 = from_str(&m8_str).unwrap();
+    //     //                 log::debug!("{:?}", m8);
 
-        //                 // todo!()
-        //             }
-        //             _ => (),
-        //         },
+    //     //                 // todo!()
+    //     //             }
+    //     //             _ => (),
+    //     //         },
 
-        //         Event::Eof => break, // exits the loop when reaching end of file
-        //         _ => (),             // There are `Event` types not considered here
-        //     }
-        // }
+    //     //         Event::Eof => break, // exits the loop when reaching end of file
+    //     //         _ => (),             // There are `Event` types not considered here
+    //     //     }
+    //     // }
 
-        // Ok(VkbReport { previewpages })
-    }
+    //     // Ok(VkbReport { previewpages })
+    // }
 
     /// Return only the b2/b3 list of fields from the VKB report
     pub(super) fn get_all_buttons(&self) -> Vec<VkbXmlButton> {
@@ -413,8 +412,8 @@ impl VkbReport {
         for page in &self.previewpages.page0 {
             for page_item in &page.b {
                 match page_item {
-                    Page0Item::b2(b2) => vkb_buttons.push(VkbXmlButton::B2(b2.clone())),
-                    Page0Item::b3(b3) => vkb_buttons.push(VkbXmlButton::B3(b3.clone())),
+                    Page0Item::B2(b2) => vkb_buttons.push(VkbXmlButton::B2(b2.clone())),
+                    Page0Item::B3(b3) => vkb_buttons.push(VkbXmlButton::B3(b3.clone())),
                     _ => {}
                 }
             }
@@ -429,7 +428,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_M7() {
+    fn test_parse_m7() {
         let xml_str = r#"
         <m7 h="20,59895" u="&#60;b&#62;#9 (Fire 2-nd stage) &#60;/b&#62;&#60;b&#62;- Button with momentary action&#60;/b&#62;" />
         "#;
@@ -438,7 +437,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_B2() {
+    fn test_parse_b2() {
         let xml_str = r#"
         <b2 t="991,09462" h="33,15801">
             <m4 u="7" />
@@ -455,7 +454,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_M8() {
+    fn test_parse_m8() {
         let xml_str = r#"
         <m8 u="95" />
         "#;
@@ -464,7 +463,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_M9() {
+    fn test_parse_m9() {
         let xml_str = r#"
         <m9 u="&#60;b&#62;#95 &#60;/b&#62; Joystick button : #95" />
         "#;
@@ -473,7 +472,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_B3() {
+    fn test_parse_b3() {
         let xml_str = r#"
         <b3 t="560,72449" h="33,77953">
                 <s1 />
@@ -490,7 +489,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_Page0() {
+    fn test_parse_page0() {
         let xml_str = r#"
         <page0>
             <b1 t="0" h="173,89765">
@@ -528,7 +527,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_ReportFull_simplified() {
+    fn test_parse_report_full_simplified() {
         assert!(VkbReport::new(
             concat!(
                 env!("CARGO_MANIFEST_DIR"),
@@ -540,7 +539,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_ReportFull_full_R() {
+    fn test_parse_report_full_full_r() {
         assert!(VkbReport::new(
             concat!(env!("CARGO_MANIFEST_DIR"), "/bindings/vkb_report_R.fp3").into(),
         )
@@ -548,7 +547,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_ReportFull_full_L() {
+    fn test_parse_report_full_full_l() {
         assert!(VkbReport::new(
             concat!(env!("CARGO_MANIFEST_DIR"), "/bindings/vkb_report_L.fp3").into(),
         )
@@ -556,7 +555,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_ReportFull_b2_merging() {
+    fn test_parse_report_full_b2_merging() {
         assert!(VkbReport::new(
             concat!(
                 env!("CARGO_MANIFEST_DIR"),
