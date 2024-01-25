@@ -73,10 +73,13 @@ fn main() -> Result<(), Error> {
     //     pdf_form::list_forms(&pdf_path);
     // }
 
-    match args.sc_mapping {
-        Some(sc_mapping) => parse_keybind_xml::parse_keybind(sc_mapping).unwrap(),
-        None => println!("SKIP : no sc_mapping path given"),
-    }
+    let game_buttons_mapping = match args.sc_mapping {
+        Some(sc_mapping) => parse_keybind_xml::parse_keybind(sc_mapping).ok(),
+        None => {
+            println!("SKIP : no sc_mapping path given");
+            None
+        }
+    };
 
     let vkb_user_provided_data = match args.vkb_user_provided_data_path {
         Some(vkb_user_provided_data_path) => {

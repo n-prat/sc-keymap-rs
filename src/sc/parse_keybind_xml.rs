@@ -1,6 +1,6 @@
 //TODO see also https://github.com/tafia/quick-xml/blob/master/examples/read_nodes_serde.rs
 
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use quick_xml::{events::Event, DeError};
 use serde::Deserialize;
@@ -101,8 +101,22 @@ struct XmlFull {
     actionmap: Vec<XmlActionMap>,
 }
 
+/// The "game version" of `JoystickButtonsMapping`
 ///
-pub fn parse_keybind(xml_path: PathBuf) -> Result<(), KeybindError> {
+/// It contains ONLY game keybinds!
+#[derive(PartialEq, Debug)]
+pub struct GameButtonsMapping {
+    /// This set is here to help detect duplicated keybinds
+    /// NOTE: this is NOT necessarily en error; sometimes we WANT to have a given action from 2 different buttons
+    /// (eg same from left stick and right stick) or maybe the same button X is used for two different things
+    /// in "flight mode" vs "driving mode", etc
+    /// It could also do two different functions in game based on long/short/double press but we can't see it from
+    /// the exported keybinds; eg "v_toggle_quantum_mode" + "v_toggle_qdrive_engagement" are using the same key
+    map_virtual_button_to_actions: HashMap<String, Vec<String>>,
+}
+
+///
+pub fn parse_keybind(xml_path: PathBuf) -> Result<GameButtonsMapping, KeybindError> {
     let xml_str =
         std::fs::read_to_string(xml_path).map_err(|err| KeybindError::ReadError { err })?;
 
@@ -110,6 +124,67 @@ pub fn parse_keybind(xml_path: PathBuf) -> Result<(), KeybindError> {
         quick_xml::de::from_str(&xml_str).map_err(|err| KeybindError::DeError { err })?;
 
     log::debug!("keybinds: {:?}", xml_data);
+
+    let mut map_virtual_button_to_actions = HashMap::new();
+
+    for actionmap in &xml_data.actionmap {
+        for action in &actionmap.action {
+            let action_name = &action.name;
+            // IMPORTANT sometimes even with the JOYSTICK exported keybinds we find eg "<rebind input="kb1_ " />"
+            // so just ignore these
+            let all_joystick_keybinds: Vec<_> = action
+                .rebind
+                .iter()
+                .filter(|rebind| rebind.input.starts_with("js"))
+                .collect();
+
+            if all_joystick_keybinds.len() > 1 {
+                log::info!("[sc] parse_keybind: more than one key for \"{action_name}\" : {all_joystick_keybinds:?} ");
+            }
+
+            // IMPORTANT sometimes there is ONLY a mouse or keyboard here for some reason...
+            // <action name="selectUnarmedCombat">
+            //     <rebind input="kb1_o" />
+            // </action>
+            // -> skip
+            if all_joystick_keybinds.len() == 0 {
+                log::info!("[sc] parse_keybind: NO key for \"{action_name}\"");
+                continue;
+            }
+
+            let logical_button_name = &all_joystick_keybinds[0].input;
+
+            // Finally; sometimes the bind is just empty
+            // <rebind input="js2_ " />
+            // -> skip
+            if logical_button_name
+                .split("_")
+                .last()
+                .unwrap()
+                .trim()
+                .is_empty()
+            {
+                log::info!("[sc] parse_keybind: empty key for \"{action_name}\" = \"{logical_button_name}\"");
+                continue;
+            }
+
+            map_virtual_button_to_actions
+                .entry(logical_button_name.clone())
+                // NOT inserted = the virtual button was already processed!
+                .and_modify(|actions: &mut Vec<String>| {
+                    actions.push(action_name.clone());
+                    log::warn!(
+                        "keybind duplicated : {logical_button_name} used for : \"{actions:?}\""
+                    );
+                })
+                // inserted = nothing to do
+                .or_insert(vec![action_name.clone()]);
+        }
+    }
+
+    Ok(GameButtonsMapping {
+        map_virtual_button_to_actions,
+    })
 
     //TODO? https://github.com/tafia/quick-xml/blob/9fb797e921d83467c89e78de7de6511801f335b1/examples/read_buffered.rs#L10
     // let mut buf = Vec::new();
@@ -134,8 +209,6 @@ pub fn parse_keybind(xml_path: PathBuf) -> Result<(), KeybindError> {
     // }
 
     // log::debug!("read {} start events in total", count);
-
-    Ok(())
 }
 
 #[cfg(test)]

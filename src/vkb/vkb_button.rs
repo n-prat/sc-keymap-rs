@@ -45,7 +45,7 @@ struct PhysicalButtonWithDesc {
 ///
 /// It does NOT contain any game keybind!
 #[derive(PartialEq, Debug)]
-pub struct ButtonMap {
+pub struct JoystickButtonsMapping {
     /// This set is here to help detect duplicated virtual buttons
     /// Typically when using SHIFT or TEMPO you can have 2 different physical buttons
     /// that end up bound to the same virtual/logical one in-game.
@@ -58,7 +58,7 @@ pub struct ButtonMap {
     physical_buttons_with_desc: Vec<PhysicalButtonWithDesc>,
 }
 
-impl ButtonMap {
+impl JoystickButtonsMapping {
     pub(crate) fn inject_user_provided_desc(
         &mut self,
         vkb_user_provided_data: csv::Reader<std::fs::File>,
@@ -78,7 +78,7 @@ impl ButtonMap {
     }
 }
 
-impl TryFrom<VkbReport> for ButtonMap {
+impl TryFrom<VkbReport> for JoystickButtonsMapping {
     type Error = VkbError;
 
     // TODO(add-CHECK) this should be 2 maps; one parent->children and one child->parent; that way we can display proper
@@ -668,7 +668,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(ButtonMap::try_from(vkb_report).is_ok());
+        assert!(JoystickButtonsMapping::try_from(vkb_report).is_ok());
     }
 
     #[test]
@@ -678,7 +678,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(ButtonMap::try_from(vkb_report).is_ok());
+        assert!(JoystickButtonsMapping::try_from(vkb_report).is_ok());
     }
 
     #[test]
@@ -688,6 +688,6 @@ mod tests {
         )
         .unwrap();
 
-        assert!(ButtonMap::try_from(vkb_report).is_ok());
+        assert!(JoystickButtonsMapping::try_from(vkb_report).is_ok());
     }
 }
