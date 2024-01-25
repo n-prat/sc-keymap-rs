@@ -24,7 +24,7 @@ use resvg::usvg;
 /// TODO do this with a svg editor? or possible with resvg?
 ///     MAYBE related https://github.com/RazrFalcon/resvg/issues/555 ?
 ///
-pub(crate) fn svg_parse(input_svg_path: PathBuf, output_png_path: PathBuf) {
+pub fn svg_parse(input_svg_path: PathBuf, output_png_path: PathBuf) {
     let mut opt = resvg::usvg::Options::default();
     // Get file's absolute directory.
     opt.resources_dir = std::fs::canonicalize(&input_svg_path)

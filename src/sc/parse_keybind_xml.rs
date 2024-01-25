@@ -102,7 +102,7 @@ struct XmlFull {
 }
 
 ///
-pub(crate) fn parse_keybind(xml_path: PathBuf) -> Result<(), KeybindError> {
+pub fn parse_keybind(xml_path: PathBuf) -> Result<(), KeybindError> {
     let xml_str =
         std::fs::read_to_string(xml_path).map_err(|err| KeybindError::ReadError { err })?;
 
@@ -206,7 +206,7 @@ mod tests {
 
     #[test]
     fn test_parse_full_sample() {
-        let xml_str = include_str!("../tests/data/layout_exported_simplified.xml");
+        let xml_str = include_str!("../../tests/data/layout_exported_simplified.xml");
 
         quick_xml::de::from_str::<XmlFull>(xml_str).unwrap();
     }

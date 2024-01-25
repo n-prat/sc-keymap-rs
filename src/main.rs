@@ -3,12 +3,7 @@ use std::io::Error;
 use std::path::PathBuf;
 use std::time::Instant;
 
-mod parse_keybind_xml;
-mod vkb;
-// mod pdf_form;
-// mod pdf_merge;
-// mod pdf_parse;
-mod svg_parse;
+use sc_keymap_rs::{sc::parse_keybind_xml, svg_parse, vkb};
 
 /// https://github.com/J-F-Liu/lopdf/blob/master/examples/extract_toc.rs
 ///

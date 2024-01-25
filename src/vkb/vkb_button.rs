@@ -18,31 +18,7 @@ use super::vkb_xml::VkbXmlButton;
 use super::vkb_xml::B2;
 use super::vkb_xml::B3;
 use super::VkbError;
-
-/// This is NOT from the xml, this is the end result.
-/// We construct the final "buttons" by parsing the "xml_desc" field eg:
-///
-/// <b>#6 </b> Joystick button : #52
-/// <b>#6 (F1) </b><b>TEMPO </b>\r\nVirtual button Short #6\r\nVirtual button Long #96
-/// etc
-#[derive(PartialEq, Debug, Clone)]
-struct Button {
-    kind: ButtonKind,
-}
-
-impl Button {
-    pub(super) fn get_id(&self) -> u8 {
-        match &self.kind {
-            ButtonKind::Physical {
-                id,
-                kind,
-                info,
-                extended_desc,
-            } => *id,
-            ButtonKind::Virtual { id } => *id,
-        }
-    }
-}
+use crate::button::{Button, ButtonKind, PhysicalButtonKind, ShiftKind, TempoKind};
 
 impl TryFrom<VkbXmlButton> for Button {
     type Error = VkbError;
@@ -69,7 +45,7 @@ struct PhysicalButtonWithDesc {
 ///
 /// It does NOT contain any game keybind!
 #[derive(PartialEq, Debug)]
-pub(crate) struct ButtonMap {
+pub struct ButtonMap {
     /// This set is here to help detect duplicated virtual buttons
     /// Typically when using SHIFT or TEMPO you can have 2 different physical buttons
     /// that end up bound to the same virtual/logical one in-game.
@@ -164,81 +140,6 @@ impl TryFrom<VkbReport> for ButtonMap {
             physical_buttons_with_desc,
         })
     }
-}
-
-#[derive(PartialEq, Debug, Clone)]
-enum ButtonKind {
-    /// This matches a "b2" field in xml
-    /// To get the ID we need to parse the desc...
-    Physical {
-        id: u8,
-        kind: PhysicalButtonKind,
-        info: String,
-        extended_desc: String,
-    },
-    /// Virtual/Logical
-    /// This matches a "b3" field in xml
-    /// In this case the "m8" field directly contains the ID, no parsing needed.
-    /// The "m9" SHOULD also contain the same ID in the desc.
-    Virtual { id: u8 },
-}
-
-#[derive(PartialEq, Debug, Clone)]
-enum PhysicalButtonKind {
-    /// The standard, basic button with no SHIT, or anything particular
-    /// VKB = "Button with momentary action"
-    Momentary {
-        shift: Option<ShiftKind>,
-    },
-    /// This is the wheel on the bottom right of the stick (one per stick)
-    Encoder,
-    Tempo(TempoKind),
-    /// The SHIFT1 = ALT button 1
-    Shift1,
-    /// The SHIFT2 = ALT button 2
-    Shift2,
-    /// "Point of view Switch"
-    /// eg "POV1  Up", "POV1  Left", etc
-    Pov {
-        direction: String,
-    },
-    /// "No defined function"
-    Undefined,
-    /// "(Ministick push) Microstick Mode Switch"
-    MicrostickModeSwitch,
-}
-
-#[derive(PartialEq, Debug, Clone)]
-enum TempoKind {
-    /// Short+Long press
-    /// "second line pulse length is equal to T_Tgl value in no matter to real depressing time"
-    Tempo1,
-    /// Short+Long press
-    /// "second line pulse length is equal to button depressing time"
-    Tempo2 {
-        button_id_short: u8,
-        button_id_long: u8,
-    },
-    /// Short+Long press+Double press
-    Tempo3 {
-        button_id_short: u8,
-        button_id_long: u8,
-        button_id_double: u8,
-    },
-}
-
-#[derive(PartialEq, Debug, Clone)]
-enum ShiftKind {
-    Shift1 {
-        button_id_shift1: u8,
-    },
-    Shift2 {
-        button_id_shift2: u8,
-    },
-    Shift12 {
-        button_id_shift1: u8,
-        button_id_shift2: u8,
-    },
 }
 
 /// Parse eg "#1 (E1) ", "#2  - Encoder 2/4", etc
