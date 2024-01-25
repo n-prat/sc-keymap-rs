@@ -2,7 +2,7 @@ use std::{num::ParseIntError, path::PathBuf};
 
 use thiserror::Error;
 
-mod vkb_button;
+pub mod vkb_button;
 mod vkb_xml;
 
 #[derive(Debug)]
