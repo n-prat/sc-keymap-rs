@@ -196,6 +196,10 @@ pub fn parse_keybind(
                 .entry(logical_button_name.clone())
                 // NOT inserted = the virtual button was already processed!
                 .and_modify(|actions: &mut Vec<String>| {
+                    // update the bindings EVEN if duplicated
+                    // we still WANT to print them in the final template!
+                    actions.push(action_name.clone());
+
                     let new_pair1 = (
                         actions.first().unwrap().to_string(),
                         action_name.to_string(),
@@ -207,7 +211,6 @@ pub fn parse_keybind(
                     {
                         log::info!("skipping {new_pair1:?}");
                     } else {
-                        actions.push(action_name.clone());
                         log::warn!(
                             "keybind duplicated : {logical_button_name} used for : \"{actions:?}\""
                         );

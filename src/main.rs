@@ -3,7 +3,7 @@ use std::io::Error;
 use std::path::PathBuf;
 use std::time::Instant;
 
-use sc_keymap_rs::{sc::parse_keybind_xml, svg_parse, vkb};
+use sc_keymap_rs::{sc::parse_keybind_xml, template_gen::generate_sc_template, vkb};
 
 /// https://github.com/J-F-Liu/lopdf/blob/master/examples/extract_toc.rs
 ///
@@ -100,6 +100,10 @@ fn main() -> Result<(), Error> {
     //     pdf_form::list_forms(&pdf_path);
     // }
 
+    ////////////////////////////////////////////////////////////////////////////
+    // First step: parse the GAME mapping
+    // NOTE: 1 mapping, irregardless of the number of physical sticks/devices
+
     let sc_bindings_to_ignore = match args.sc_bindings_to_ignore_path {
         Some(sc_bindings_to_ignore_path) => {
             let rdr = csv::Reader::from_path(sc_bindings_to_ignore_path).unwrap();
@@ -108,7 +112,7 @@ fn main() -> Result<(), Error> {
         None => None,
     };
 
-    let _game_buttons_mapping = match args.sc_mapping {
+    let game_buttons_mapping = match args.sc_mapping {
         Some(sc_mapping) => {
             parse_keybind_xml::parse_keybind(sc_mapping, sc_bindings_to_ignore).ok()
         }
@@ -119,17 +123,8 @@ fn main() -> Result<(), Error> {
     };
 
     ////////////////////////////////////////////////////////////////////////////
-
-    match args.vkb_template_path {
-        Some(vkb_template_path) => {
-            svg_parse::svg_parse(
-                vkb_template_path,
-                args.vkb_output_png_path
-                    .expect("vkb_template_path set but missing vkb_output_png_path"),
-            );
-        }
-        None => println!("SKIP : no vkb_template_path path given"),
-    }
+    // Second step: parse the DEVICES mapping
+    // NOTE: many mappings, one per physical sticks/devices
 
     let joysticks_mappings = match args.vkb_reports_paths {
         Some(vkb_reports_paths) => {
@@ -160,7 +155,7 @@ fn main() -> Result<(), Error> {
         }
     };
 
-    match joysticks_mappings {
+    match &joysticks_mappings {
         Some(joysticks_mappings) => {
             if joysticks_mappings.len() == 2 {
                 if joysticks_mappings[0] != joysticks_mappings[1] {
@@ -169,6 +164,27 @@ fn main() -> Result<(), Error> {
             }
         }
         None => {}
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Last step:
+    // We have the ONE game mappings, and the many devices mappings
+    //
+
+    match (game_buttons_mapping, joysticks_mappings) {
+        (Some(game_buttons_mapping), Some(joysticks_mappings)) => {
+            // svg_parse::svg_parse(
+            //     vkb_template_path,
+            //     args.vkb_output_png_path
+            //         .expect("vkb_template_path set but missing vkb_output_png_path"),
+            // );
+
+            generate_sc_template(game_buttons_mapping, joysticks_mappings);
+        }
+        _ => {
+            // missing stuff; nothing to do
+            println!("SKIP : missing game and/or devices mappings and/or arg --vkb-template-path; nothing to do...");
+        }
     }
 
     Ok(())
