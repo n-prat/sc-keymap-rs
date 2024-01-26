@@ -3,7 +3,11 @@ use std::io::Error;
 use std::path::PathBuf;
 use std::time::Instant;
 
-use sc_keymap_rs::{sc::parse_keybind_xml, template_gen::generate_sc_template, vkb};
+use sc_keymap_rs::{
+    sc::parse_keybind_xml,
+    template_gen::generate_sc_template,
+    vkb::{self, parse_and_check_vkb_both_sticks},
+};
 
 /// https://github.com/J-F-Liu/lopdf/blob/master/examples/extract_toc.rs
 ///
@@ -59,6 +63,10 @@ pub struct Args {
     /// Optional output png path; only applicable if `vkb_template_path`
     #[clap(short, long)]
     pub vkb_output_png_path: Option<PathBuf>,
+
+    /// Optional path to a "vkb_template_params.json" cf `TemplateJsonParamaters`
+    #[clap(long)]
+    pub vkb_template_params_path: Option<PathBuf>,
 
     /// Optional pretty print output.
     #[clap(short, long)]
@@ -126,29 +134,13 @@ fn main() -> Result<(), Error> {
     // Second step: parse the DEVICES mapping
     // NOTE: many mappings, one per physical sticks/devices
 
-    let joysticks_mappings = match args.vkb_reports_paths {
-        Some(vkb_reports_paths) => {
-            let mut res = vec![];
-            for vkb_report_path in vkb_reports_paths {
-                let vkb_user_provided_data = match args.vkb_user_provided_data_path {
-                    Some(ref vkb_user_provided_data_path) => {
-                        let rdr = csv::Reader::from_path(vkb_user_provided_data_path).unwrap();
-                        Some(rdr)
-                    }
-                    None => None,
-                };
-
-                let vkb_report = vkb::parse_report(vkb_report_path).unwrap();
-                log::info!("vkb_report : {:#?}", vkb_report);
-
-                let vkb_buttons = vkb::check_report(vkb_report, vkb_user_provided_data);
-                log::info!("vkb_buttons : {:#?}", vkb_buttons);
-
-                res.push(vkb_buttons);
-            }
-
-            Some(res)
-        }
+    let joysticks_mappings = match &args.vkb_reports_paths {
+        Some(vkb_reports_paths) => parse_and_check_vkb_both_sticks(
+            vkb_reports_paths[0].clone(),
+            vkb_reports_paths[1].clone(),
+            args.vkb_user_provided_data_path,
+        )
+        .ok(),
         None => {
             println!("SKIP : no vkb_reports_paths given");
             None
@@ -157,10 +149,8 @@ fn main() -> Result<(), Error> {
 
     match &joysticks_mappings {
         Some(joysticks_mappings) => {
-            if joysticks_mappings.len() == 2 {
-                if joysticks_mappings[0] != joysticks_mappings[1] {
-                    log::warn!("2 joystick mappings processed -> they are different!");
-                }
+            if joysticks_mappings.get_first() != joysticks_mappings.get_second() {
+                log::warn!("2 joystick mappings processed -> they are different!");
             }
         }
         None => {}
@@ -179,7 +169,12 @@ fn main() -> Result<(), Error> {
             //         .expect("vkb_template_path set but missing vkb_output_png_path"),
             // );
 
-            generate_sc_template(game_buttons_mapping, joysticks_mappings);
+            generate_sc_template(
+                game_buttons_mapping,
+                joysticks_mappings,
+                args.vkb_template_params_path
+                    .expect("missing --vkb-template-params-path"),
+            );
         }
         _ => {
             // missing stuff; nothing to do

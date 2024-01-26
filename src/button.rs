@@ -107,6 +107,7 @@ pub(crate) enum ButtonKind {
         kind: PhysicalButtonKind,
         info: String,
         extended_desc: String,
+        user_desc: String,
     },
     /// Virtual/Logical
     /// This matches a "b3" field in xml
@@ -123,10 +124,11 @@ impl core::fmt::Debug for ButtonKind {
                 kind,
                 info,
                 extended_desc,
+                user_desc,
             } => write!(
                 f,
-                "PhysicalButton [{} {} {} ({kind:?})]",
-                id, info, extended_desc
+                "PhysicalButton [{} {} {} {} ({kind:?})]",
+                id, info, extended_desc, user_desc
             ),
             ButtonKind::Virtual { id } => {
                 write!(f, "VirtualButton [{}]", id)
@@ -161,8 +163,22 @@ impl Button {
                 kind: _,
                 info: _,
                 extended_desc: _,
+                user_desc: _,
             } => *id,
             ButtonKind::Virtual { id } => *id,
+        }
+    }
+
+    pub(super) fn set_user_desc(&mut self, new_user_desc: &str) {
+        match &mut self.kind {
+            ButtonKind::Physical {
+                id: _,
+                kind: _,
+                info: _,
+                extended_desc: _,
+                user_desc,
+            } => *user_desc = new_user_desc.to_string(),
+            ButtonKind::Virtual { id: _ } => {}
         }
     }
 }

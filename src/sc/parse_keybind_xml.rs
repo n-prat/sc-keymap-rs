@@ -115,6 +115,28 @@ pub struct GameButtonsMapping {
     map_virtual_button_to_actions: HashMap<String, Vec<String>>,
 }
 
+impl GameButtonsMapping {
+    /// [Star Citizen] specific:
+    /// CHECK for:
+    /// - "js1_button{virtual_button_id}"
+    /// - "js2_button{virtual_button_id}"
+    pub fn get_action_from_virtual_button_id(&self, virtual_button_id: u8) -> Option<&Vec<String>> {
+        match self
+            .map_virtual_button_to_actions
+            .get(&format!("js1_button{}", virtual_button_id))
+        {
+            Some(actions_names) => Some(actions_names),
+            None => match self
+                .map_virtual_button_to_actions
+                .get(&format!("js2_button{}", virtual_button_id))
+            {
+                Some(actions_names) => Some(actions_names),
+                None => None,
+            },
+        }
+    }
+}
+
 ///
 pub fn parse_keybind(
     xml_path: PathBuf,
