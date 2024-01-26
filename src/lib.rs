@@ -1,6 +1,5 @@
 pub mod button;
 pub mod sc;
-pub mod svg_parse;
 pub mod template_gen;
 pub mod vkb;
 
