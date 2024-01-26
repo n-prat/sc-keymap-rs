@@ -1,0 +1,51 @@
+{
+  "path_to_full_png": "/home/pratn/workspace/sc-keymap-rs/sc-keymap-rs/bindings/EVO_L_official.jpg",
+  "path_to_side_png": "/home/pratn/workspace/sc-keymap-rs/sc-keymap-rs/bindings/EVO_stick_L_official.jpg",
+  "buttons_params": [
+    {
+      "physical_names": [
+        "A1 8-way ministick N",
+        "A1 8-way ministick NE",
+        "A1 8-way ministick E",
+        "A1 8-way ministick SE",
+        "A1 8-way ministick S",
+        "A1 8-way ministick SW",
+        "A1 8-way ministick W",
+        "A1 8-way ministick NW"
+      ],
+      "user_desc": "MiniStick - 8 ways - top of stick",
+      "desired_box_position_in_final_png": [
+        2250,
+        50
+      ],
+      "connector_start_line_position_in_final_png": [
+        1550,
+        225
+      ],
+      "connector_end_line_position_in_final_png": [
+        1880,
+        190
+      ]
+    },
+    {
+      "physical_names": [
+        "(F2)",
+        "(F3)",
+        "(F1)"
+      ],
+      "user_desc": "F1/F2/F3 TEMPO buttons - base of stick",
+      "desired_box_position_in_final_png": [
+        300,
+        1100
+      ],
+      "connector_start_line_position_in_final_png": [
+        1000,
+        1250
+      ],
+      "connector_end_line_position_in_final_png": [
+        800,
+        1200
+      ]
+    }
+  ]
+}

@@ -1,38 +1,49 @@
 use image::imageops;
 use rusttype::Font;
 use rusttype::Scale;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use crate::sc::parse_keybind_xml;
-use crate::vkb::vkb_button;
+use crate::vkb::VkbBothSticksMappings;
 
 pub fn generate_sc_template(
     game_buttons_mapping: parse_keybind_xml::GameButtonsMapping,
-    joysticks_mappings: Vec<vkb_button::JoystickButtonsMapping>,
+    joysticks_mappings: VkbBothSticksMappings,
+    json_template_params_path: PathBuf,
 ) {
-    let path1: PathBuf = concat!(env!("CARGO_MANIFEST_DIR"), "/bindings/EVO_L_official.jpg").into();
-    let image_full_front = image::open(path1).expect("Failed to open image1");
+    ////////////////////////////////////////////////////////////////////////////
+    // Parse the "vkb_template_params.json"
+    // and check eveything is OK: paths, etc
+    let json_params: TemplateJsonParamaters = serde_json::from_reader(std::io::BufReader::new(
+        std::fs::File::open(json_template_params_path).unwrap(),
+    ))
+    .unwrap();
+    println!("json_params : {json_params:?}");
 
-    let path2: PathBuf = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/bindings/EVO_stick_L_official.jpg"
-    )
-    .into();
-    let image_back = image::open(path2).expect("Failed to open image2");
+    ////////////////////////////////////////////////////////////////////////////
+    let image_full_front =
+        image::open(json_params.path_to_full_png).expect("Failed to open image1");
+
+    let image_back = image::open(json_params.path_to_side_png).expect("Failed to open image2");
 
     // Create a new RgbaImage with dimensions based on the larger of the two images
-    const WIDTH: u32 = 2000;
-    const HEIGHT: u32 = 1200;
+    const WIDTH: u32 = 3000;
+    const HEIGHT: u32 = 1800;
     // let width = image_full_front.width().max(image_back.width());
     // let height = image_full_front.height().max(image_back.height());
     let mut final_image = image::RgbaImage::new(WIDTH, HEIGHT);
 
+    ////////////////////////////////////////////////////////////////////////////
+
     // Draw the first image onto the final image
+    let image_full_front =
+        imageops::resize(&image_full_front, 1800, 1800, imageops::FilterType::Nearest);
     image::imageops::overlay(
         &mut final_image,
         &image_full_front,
-        (WIDTH as f32 * 0.3) as i64,
-        (HEIGHT as f32 * 0.2) as i64,
+        (WIDTH as f32 * 0.15) as i64,
+        (HEIGHT as f32 * 0.0) as i64,
     );
 
     // Draw the second image onto the final image with an offset
@@ -44,67 +55,81 @@ pub fn generate_sc_template(
         (HEIGHT as f32 * 0.2) as i64,
     );
 
-    // Add line connectors (example: draw a green line)
+    ////////////////////////////////////////////////////////////////////////////
+    // main drawing code
+
     let line_color = image::Rgba([0, 255, 0, 255]);
-    // imageproc::drawing::draw_line_segment_mut(
-    //     &mut final_image,
-    //     (50.0, 50.0),
-    //     (150.0, 150.0),
-    //     line_color,
-    // );
-    draw_thicker_line_mut(&mut final_image, (50, 50), (150, 150), 4, line_color);
 
     // Load a system font (replace with the path to your TTF or OTF font file)
     let font_data = include_bytes!("../bindings/BF_Modernista-Regular.ttf");
     let font = rusttype::Font::try_from_bytes(font_data).expect("Failed to load font");
 
     // Draw boxes in a 4-way pattern with customizable color and stroke thickness
-    const BOX_LENGTH: i32 = 150;
-    const BOX_HEIGHT: i32 = 20;
+    const BOX_LENGTH: i32 = 350;
+    const BOX_HEIGHT: i32 = 85;
     const PADDING_H: i32 = 10;
     const PADDING_V: i32 = 10;
-    draw_boxes(
-        &mut final_image,
-        4,
-        image::Rgba([120, 0, 80, 180]),
-        2,
-        (200, 300),
-        BOX_LENGTH,
-        BOX_HEIGHT,
-        PADDING_H,
-        PADDING_V,
-        &font,
-        image::Rgba([10, 10, 10, 255]),
-        24,
-    );
-    draw_boxes(
-        &mut final_image,
-        2,
-        image::Rgba([120, 0, 80, 180]),
-        2,
-        (1500, 300),
-        BOX_LENGTH,
-        BOX_HEIGHT,
-        PADDING_H,
-        PADDING_V,
-        &font,
-        image::Rgba([10, 10, 10, 255]),
-        24,
-    );
-    draw_boxes(
-        &mut final_image,
-        8,
-        image::Rgba([0, 150, 80, 180]),
-        2,
-        (1000, 800),
-        BOX_LENGTH,
-        BOX_HEIGHT,
-        PADDING_H,
-        PADDING_V,
-        &font,
-        image::Rgba([10, 10, 10, 255]),
-        24,
-    );
+
+    for button_param in &json_params.buttons_params {
+        let keybinds: Vec<String> = button_param
+            .physical_names
+            .iter()
+            .map(|physical_name| {
+                // First: get the corresponding VIRTUAL button ID from "physical_name" in json
+                // TODO(2-sticks) handle two sticks
+                let virtual_button_ids = joysticks_mappings
+                    .get_virtual_button_ids_from_info_or_user_desc(physical_name, false)
+                    .unwrap();
+
+                // Next: get the game binding from this virtual_button_id
+                let mut actions_names: String = "".to_string();
+                for virtual_button_id in virtual_button_ids {
+                    match game_buttons_mapping.get_action_from_virtual_button_id(virtual_button_id)
+                    {
+                        Some(act_names) => actions_names.push_str(&act_names.join("\n")),
+                        None => actions_names.push_str("NO BINDING"),
+                    }
+
+                    actions_names.push_str("\n");
+                }
+
+                actions_names
+            })
+            .collect();
+
+        match button_param.physical_names.len() {
+            1 | 2 | 4 | 8 | 3 => {
+                draw_boxes(
+                    &mut final_image,
+                    button_param.physical_names.len(),
+                    image::Rgba([0, 150, 80, 180]),
+                    2,
+                    button_param.desired_box_position_in_final_png,
+                    BOX_LENGTH,
+                    BOX_HEIGHT,
+                    PADDING_H,
+                    PADDING_V,
+                    &font,
+                    image::Rgba([200, 200, 10, 255]),
+                    24,
+                    keybinds,
+                );
+
+                draw_thicker_line_mut(
+                    &mut final_image,
+                    button_param.connector_start_line_position_in_final_png,
+                    button_param.connector_end_line_position_in_final_png,
+                    4,
+                    line_color,
+                );
+            }
+            _ => {
+                unimplemented!("NOT SUPPORTED")
+            }
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
 
     // Save the final image
     final_image
@@ -191,24 +216,36 @@ fn draw_box(image: &mut image::RgbaImage, parameters: BoxParameters) {
     match parameters.text_params {
         Some(text_params) => {
             let scale = Scale::uniform(text_params.text_size as f32);
-            let text_size =
-                imageproc::drawing::text_size(scale, text_params.font, &text_params.text);
-
-            // Center the text, both horizontally and vertically
-            imageproc::drawing::draw_text_mut(
-                image,
-                text_params.text_color,
-                (parameters.position.0 as u32 + parameters.size.0 / 2 - text_size.0 as u32 / 2)
-                    .try_into()
-                    .unwrap(),
-                // text_size.1 / 4 b/c 2 would make the bottom of the text on the bottom of the box
-                (parameters.position.1 as u32 + parameters.size.1 / 4 - text_size.1 as u32 / 2)
-                    .try_into()
-                    .unwrap(),
+            // height: use the max height
+            let text_height =
+                imageproc::drawing::text_size(scale, text_params.font, &text_params.text).1;
+            // TODO width: use the longest b/w every lines
+            let max_text_width = imageproc::drawing::text_size(
                 scale,
                 text_params.font,
-                &text_params.text,
-            );
+                &text_params.text.split("\n").collect::<Vec<_>>()[0],
+            )
+            .0;
+
+            // Center the text, both horizontally and vertically
+            for (line_no, line) in text_params.text.split("\n").enumerate() {
+                imageproc::drawing::draw_text_mut(
+                    image,
+                    text_params.text_color,
+                    (parameters.position.0 as u32 + parameters.size.0 / 2
+                        - max_text_width as u32 / 2)
+                        .try_into()
+                        .unwrap(),
+                    // text_size.1 / 4 b/c 2 would make the bottom of the text on the bottom of the box
+                    (parameters.position.1 as u32 + parameters.size.1 / 4 - text_height as u32 / 2
+                        + line_no as u32 * text_height as u32)
+                        .try_into()
+                        .unwrap(),
+                    scale,
+                    text_params.font,
+                    &line,
+                );
+            }
         }
         None => {}
     }
@@ -228,7 +265,10 @@ fn draw_boxes(
     font: &Font<'static>,
     text_color: image::Rgba<u8>,
     text_size: u32,
+    texts: Vec<String>,
 ) {
+    assert_eq!(texts.len(), pattern);
+
     let draw_parameters = |x, y, txt: &str| BoxParameters {
         position: (x, y),
         size: (
@@ -249,7 +289,7 @@ fn draw_boxes(
         // top center
         draw_box(
             image,
-            draw_parameters(start_position.0, start_position.1, "000"),
+            draw_parameters(start_position.0, start_position.1, &texts[0]),
         );
         // right, vertically in between "top center" and "bottom center"
         draw_box(
@@ -257,7 +297,7 @@ fn draw_boxes(
             draw_parameters(
                 start_position.0 + small_box_length + padding_h,
                 start_position.1 + small_box_height + padding_v,
-                "111",
+                &texts[1],
             ),
         );
         // bottom center
@@ -266,7 +306,7 @@ fn draw_boxes(
             draw_parameters(
                 start_position.0,
                 start_position.1 + 2 * (small_box_height + padding_v),
-                "222",
+                &texts[2],
             ),
         );
         // left, vertically in between "top center" and "bottom center"
@@ -275,7 +315,7 @@ fn draw_boxes(
             draw_parameters(
                 start_position.0 - small_box_length - padding_h,
                 start_position.1 + small_box_height + padding_v,
-                "333",
+                &texts[3],
             ),
         );
     };
@@ -284,14 +324,14 @@ fn draw_boxes(
         2 => {
             draw_box(
                 image,
-                draw_parameters(start_position.0, start_position.1, "aaa"),
+                draw_parameters(start_position.0, start_position.1, &texts[0]),
             );
             draw_box(
                 image,
                 draw_parameters(
                     start_position.0,
                     start_position.1 + small_box_height + padding_v,
-                    "bbb",
+                    &texts[1],
                 ),
             );
         }
@@ -309,7 +349,7 @@ fn draw_boxes(
                 draw_parameters(
                     start_position.0 + small_box_length + padding_h,
                     start_position.1,
-                    "aaa",
+                    &texts[4],
                 ),
             );
             // top left
@@ -318,7 +358,7 @@ fn draw_boxes(
                 draw_parameters(
                     start_position.0 - small_box_length - padding_h,
                     start_position.1,
-                    "bbb",
+                    &texts[5],
                 ),
             );
             // bottom right
@@ -327,7 +367,7 @@ fn draw_boxes(
                 draw_parameters(
                     start_position.0 + small_box_length + padding_h,
                     start_position.1 + 2 * (small_box_height + padding_v),
-                    "ccc",
+                    &texts[6],
                 ),
             );
             // bottom left
@@ -336,12 +376,71 @@ fn draw_boxes(
                 draw_parameters(
                     start_position.0 - small_box_length - padding_h,
                     start_position.1 + 2 * (small_box_height + padding_v),
-                    "ddd",
+                    &texts[7],
+                ),
+            );
+        }
+        1 => {
+            draw_box(
+                image,
+                draw_parameters(start_position.0, start_position.1, &texts[0]),
+            );
+        }
+        // 3 horizontal
+        3 => {
+            // left
+            draw_box(
+                image,
+                draw_parameters(start_position.0, start_position.1, &texts[0]),
+            );
+            // center
+            draw_box(
+                image,
+                draw_parameters(
+                    start_position.0 + 1 * (small_box_length + padding_h),
+                    start_position.1,
+                    &texts[1],
+                ),
+            );
+            // right
+            draw_box(
+                image,
+                draw_parameters(
+                    start_position.0 + 2 * (small_box_length + padding_h),
+                    start_position.1,
+                    &texts[2],
                 ),
             );
         }
         _ => {
             // Handle other cases or provide a default behavior
+            unimplemented!("draw_boxes: pattern = only 1/2/4/8 are supported");
         }
     }
+}
+
+/// NOTE: this is for one joystick, either L or right
+/// (at least for now)
+#[derive(Serialize, Deserialize, Debug)]
+struct TemplateJsonParamaters {
+    path_to_full_png: PathBuf,
+    path_to_side_png: PathBuf,
+    buttons_params: Vec<TemplateJsonButtonOrStickParameters>,
+}
+
+/// This is how/where a button/stick will be drawn in the final composite image
+#[derive(Serialize, Deserialize, Debug)]
+struct TemplateJsonButtonOrStickParameters {
+    /// Based on whate is written on the stick itself: eg "A1", "F1", etc
+    /// It MUST either match:
+    /// - the "info" field in xml; that would be "(A1)","(F1)" etc for simple buttons
+    /// - OR the "desciption" found in bindings/vkb_user_provided_data.csv
+    ///   Typically that would be for the 4-ways/8-ways sticks
+    /// List b/c for 4-ways/8-ways/encoders etc we group them and draw all-at-once in a box.
+    physical_names: Vec<String>,
+    /// User-friendly description: eg "Red thumb button top of stick"
+    user_desc: String,
+    desired_box_position_in_final_png: (i32, i32),
+    connector_start_line_position_in_final_png: (i32, i32),
+    connector_end_line_position_in_final_png: (i32, i32),
 }

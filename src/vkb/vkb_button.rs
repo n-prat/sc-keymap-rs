@@ -27,20 +27,21 @@ impl TryFrom<VkbXmlButton> for Button {
     }
 }
 
-/// That is what will be printed on the final png/pdf/svg
-#[derive(PartialEq, Debug)]
-struct PhysicalButtonWithDesc {
-    id: u8,
-    /// Usually this will be extracted from the "b2.m7" xml field; up to the first "\r\n"
-    info: String,
-    /// cf `extract_button_id_from_inner_html`
-    extended_desc: String,
-}
+// /// That is what will be printed on the final png/pdf/svg
+// #[derive(PartialEq, Debug, Clone)]
+// pub(crate) struct PhysicalButtonWithDesc {
+//     pub(crate) id: u8,
+//     /// Usually this will be extracted from the "b2.m7" xml field; up to the first "\r\n"
+//     pub(crate) info: String,
+//     /// cf `extract_button_id_from_inner_html`
+//     pub(crate) extended_desc: String,
+//     pub(crate) user_desc: String,
+// }
 
 /// This is the final mapping, correspondonding to the XML!
 ///
 /// It does NOT contain any game keybind!
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct JoystickButtonsMapping {
     /// This set is here to help detect duplicated virtual buttons
     /// Typically when using SHIFT or TEMPO you can have 2 different physical buttons
@@ -50,8 +51,10 @@ pub struct JoystickButtonsMapping {
     ///
     /// Note that is NOT detected by VkbDevCfg, probably because this NOT (necessarily) a bug;
     /// this is mostly a "waste of space".
-    map_virtual_button_to_parent: HashMap<u8, Vec<Button>>,
-    physical_buttons_with_desc: Vec<PhysicalButtonWithDesc>,
+    pub(crate) map_virtual_button_id_to_parent_physical_buttons: HashMap<u8, Vec<Button>>,
+    /// Inverse of `map_virtual_button_id_to_physical_button`
+    pub(crate) map_physical_button_id_to_children_virtual_button_ids: HashMap<u8, Vec<u8>>,
+    // pub(crate) physical_buttons_with_desc: Vec<PhysicalButtonWithDesc>,
 }
 
 impl JoystickButtonsMapping {
@@ -61,15 +64,30 @@ impl JoystickButtonsMapping {
     ) {
         let csv_records: Vec<_> = vkb_user_provided_data.into_records().collect();
 
-        for button_with_desc in &mut self.physical_buttons_with_desc {
-            let current_desc = button_with_desc.extended_desc.to_string();
-            let user_desc = csv_records[button_with_desc.id as usize - 1]
-                .as_ref()
-                .expect("MISSING CSV RECORD")
-                .get(1)
-                .expect("MISSING CSV COLUMN")
-                .to_string();
-            button_with_desc.extended_desc = format!("{current_desc} [{user_desc}]");
+        // for button_with_desc in &mut self.physical_buttons_with_desc {
+        //     let user_desc = csv_records[button_with_desc.id as usize - 1]
+        //         .as_ref()
+        //         .expect("MISSING CSV RECORD")
+        //         .get(1)
+        //         .expect("MISSING CSV COLUMN")
+        //         .to_string();
+        //     button_with_desc.user_desc = user_desc;
+        // }
+
+        // ALSO update the other field
+        for (_virtual_button_id, physical_buttons_parents) in &mut self
+            .map_virtual_button_id_to_parent_physical_buttons
+            .iter_mut()
+        {
+            for physical_button_parent in physical_buttons_parents.iter_mut() {
+                let user_desc = csv_records[physical_button_parent.get_id() as usize - 1]
+                    .as_ref()
+                    .expect("MISSING CSV RECORD")
+                    .get(1)
+                    .expect("MISSING CSV COLUMN")
+                    .to_string();
+                physical_button_parent.set_user_desc(&user_desc);
+            }
         }
     }
 }
@@ -80,9 +98,10 @@ impl TryFrom<VkbReport> for JoystickButtonsMapping {
     // TODO(add-CHECK) this should be 2 maps; one parent->children and one child->parent; that way we can display proper
     // warnings to find where the duplicates originate
     fn try_from(vkb_report: VkbReport) -> Result<Self, Self::Error> {
-        let mut map_virtual_button_to_parent: HashMap<u8, Vec<Button>> = HashMap::new();
-        let mut physical_buttons_with_desc = Vec::new();
-
+        let mut map_virtual_button_id_to_parent_physical_buttons: HashMap<u8, Vec<Button>> =
+            HashMap::new();
+        let mut map_physical_button_id_to_children_virtual_button_ids: HashMap<u8, Vec<u8>> =
+            HashMap::new();
         let vkb_buttons = vkb_report.get_all_buttons();
 
         // We loop on all b2/b3 buttons from the xml
@@ -95,21 +114,23 @@ impl TryFrom<VkbReport> for JoystickButtonsMapping {
                 Ok(button) => {
                     match &button.kind {
                         ButtonKind::Physical {
-                            id,
+                            id: _,
                             kind: _,
-                            info,
-                            extended_desc,
+                            info: _,
+                            extended_desc: _,
+                            user_desc: _,
                         } => {
                             current_parent = Some(button.clone());
 
-                            physical_buttons_with_desc.push(PhysicalButtonWithDesc {
-                                id: *id,
-                                info: info.to_string(),
-                                extended_desc: extended_desc.to_string(),
-                            });
+                            // physical_buttons_with_desc.push(PhysicalButtonWithDesc {
+                            //     id: *id,
+                            //     info: info.to_string(),
+                            //     extended_desc: extended_desc.to_string(),
+                            //     user_desc: user_desc.to_string(),
+                            // });
                         }
                         ButtonKind::Virtual { id } => {
-                            map_virtual_button_to_parent
+                            map_virtual_button_id_to_parent_physical_buttons
                                 .entry(id.clone())
                                 // NOT inserted = the virtual button was already processed!
                                 .and_modify(|parents| {
@@ -118,6 +139,17 @@ impl TryFrom<VkbReport> for JoystickButtonsMapping {
                                 })
                                 // inserted = nothing to do
                                 .or_insert(vec![current_parent.clone().unwrap().clone()]);
+
+                            map_physical_button_id_to_children_virtual_button_ids
+                                .entry(current_parent.clone().unwrap().get_id())
+                                // NOT inserted = the virtual button was already processed!
+                                .and_modify(|children| {
+                                    children.push(button.clone().get_id());
+                                    // is this a warning???
+                                    log::info!("physical button duplicated : {} from logical : {children:?}", id);
+                                })
+                                // inserted = nothing to do
+                                .or_insert(vec![button.clone().get_id()]);
 
                             // NOTE: NOT an error; it can just happen; for example right now for the 8 way ministick switch
                             // they entries have the same physical ID and logical ID
@@ -132,8 +164,8 @@ impl TryFrom<VkbReport> for JoystickButtonsMapping {
         }
 
         Ok(Self {
-            map_virtual_button_to_parent,
-            physical_buttons_with_desc,
+            map_virtual_button_id_to_parent_physical_buttons,
+            map_physical_button_id_to_children_virtual_button_ids,
         })
     }
 }
@@ -363,6 +395,7 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, Vk
                 .info
                 .expect(format!("MISSING INFO FOR BUTTON {}", button_id_info.id).as_str()),
             extended_desc: remaining_b_node_inner_html,
+            user_desc: "".to_string(),
         },
     };
 
@@ -478,7 +511,7 @@ mod tests {
                     kind: ButtonKind::Physical {
                         id: 1,
                         kind: PhysicalButtonKind::Encoder
-                        , info: "(E1)".to_string(), extended_desc: "#2  - Encoder 2/4".to_string()
+                        , info: "(E1)".to_string(), extended_desc: "#2  - Encoder 2/4".to_string(), user_desc: "".to_string(),
                     }
                 },
             ),
@@ -488,7 +521,7 @@ mod tests {
                     kind: ButtonKind::Physical {
                         id: 3,
                         kind: PhysicalButtonKind::Momentary{ shift: None },
-                        info: "(E2)".to_string(), extended_desc: "- Button with momentary action".to_string()
+                        info: "(E2)".to_string(), extended_desc: "- Button with momentary action".to_string(), user_desc: "".to_string(),
                     }
                 },
             ),
@@ -497,7 +530,7 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 4,
-                        kind: PhysicalButtonKind::Momentary{ shift: None }, info: "".to_string(), extended_desc: "- Button with momentary action".to_string()
+                        kind: PhysicalButtonKind::Momentary{ shift: None }, info: "".to_string(), extended_desc: "- Button with momentary action".to_string(), user_desc: "".to_string(),
                     }
                 },
             ),
@@ -506,7 +539,7 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 5,
-                        kind: PhysicalButtonKind::Tempo(TempoKind::Tempo2 { button_id_short: 5, button_id_long: 94 }), info: "(F3)".to_string(), extended_desc: "TEMPO ".to_string()
+                        kind: PhysicalButtonKind::Tempo(TempoKind::Tempo2 { button_id_short: 5, button_id_long: 94 }), info: "(F3)".to_string(), extended_desc: "TEMPO ".to_string(), user_desc: "".to_string(),
                     }
                 },
             ),
@@ -515,7 +548,7 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 5,
-                        kind: PhysicalButtonKind::Tempo(TempoKind::Tempo3 { button_id_short: 5, button_id_long: 94, button_id_double: 95 } ), info: "(F3)".to_string(), extended_desc: "TEMPO ".to_string()
+                        kind: PhysicalButtonKind::Tempo(TempoKind::Tempo3 { button_id_short: 5, button_id_long: 94, button_id_double: 95 } ), info: "(F3)".to_string(), extended_desc: "TEMPO ".to_string(), user_desc: "".to_string(),
                     }
                 },
             ),
@@ -524,7 +557,7 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 9,
-                        kind: PhysicalButtonKind::Momentary { shift: None }, info: "(Fire 2-nd stage)".to_string(), extended_desc: "- Button with momentary action".to_string()
+                        kind: PhysicalButtonKind::Momentary { shift: None }, info: "(Fire 2-nd stage)".to_string(), extended_desc: "- Button with momentary action".to_string(), user_desc: "".to_string(),
                     }
                 },
             ),
@@ -533,7 +566,7 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 10,
-                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift12 { button_id_shift1: 64, button_id_shift2: 91 }) }, info: "(Fire 1-st stage)".to_string(), extended_desc: "- Button with momentary action".to_string()
+                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift12 { button_id_shift1: 64, button_id_shift2: 91 }) }, info: "(Fire 1-st stage)".to_string(), extended_desc: "- Button with momentary action".to_string(), user_desc: "".to_string(),
                     }
                 },
             ),
@@ -542,7 +575,7 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 11,
-                        kind: PhysicalButtonKind::Shift1, info: "(D1)".to_string(), extended_desc: " SHIFT1 ".to_string()
+                        kind: PhysicalButtonKind::Shift1, info: "(D1)".to_string(), extended_desc: " SHIFT1 ".to_string(), user_desc: "".to_string(),
                     }
                 },
             ),
@@ -551,7 +584,7 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 12,
-                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift12 { button_id_shift1: 13, button_id_shift2: 90 }) }, info: "(A2)".to_string(), extended_desc: "- Button with momentary action".to_string()
+                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift12 { button_id_shift1: 13, button_id_shift2: 90 }) }, info: "(A2)".to_string(), extended_desc: "- Button with momentary action".to_string(), user_desc: "".to_string()
                     }
                 },
             ),
@@ -560,7 +593,7 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 18,
-                        kind: PhysicalButtonKind::Pov { direction: "Down".to_string() }, info: "(A1 down)".to_string(), extended_desc: "Point of view Switch".to_string()
+                        kind: PhysicalButtonKind::Pov { direction: "Down".to_string() }, info: "(A1 down)".to_string(), extended_desc: "Point of view Switch".to_string(), user_desc: "".to_string(),
                     }
                 },
             ),
@@ -569,7 +602,7 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 35,
-                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift1 { button_id_shift1: 37 }) }, info: "(Rapid fire forward)".to_string(), extended_desc: "- Button with momentary action".to_string()
+                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift1 { button_id_shift1: 37 }) }, info: "(Rapid fire forward)".to_string(), extended_desc: "- Button with momentary action".to_string(), user_desc: "".to_string(),
                     },
                 },
             ),
@@ -579,7 +612,7 @@ mod tests {
                     kind: ButtonKind::Physical {
                         id: 37,
                         kind: PhysicalButtonKind::Undefined
-                        , info: "".to_string(), extended_desc: " No defined function".to_string()
+                        , info: "".to_string(), extended_desc: " No defined function".to_string(), user_desc: "".to_string(),
                     }
                 },
             ),
@@ -588,7 +621,7 @@ mod tests {
                 Button {
                     kind: ButtonKind::Physical {
                         id: 9,
-                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift12 { button_id_shift1: 63, button_id_shift2: 92 }) }, info: "(Fire 2-nd stage)".to_string(), extended_desc: "- Button with momentary action".to_string()
+                        kind: PhysicalButtonKind::Momentary { shift: Some(ShiftKind::Shift12 { button_id_shift1: 63, button_id_shift2: 92 }) }, info: "(Fire 2-nd stage)".to_string(), extended_desc: "- Button with momentary action".to_string(), user_desc: "".to_string(),
                     },
                 },
             ),
