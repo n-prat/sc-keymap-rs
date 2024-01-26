@@ -66,7 +66,7 @@ pub fn generate_sc_template(
     draw_boxes(
         &mut final_image,
         4,
-        image::Rgba([120, 0, 80, 255]),
+        image::Rgba([120, 0, 80, 180]),
         2,
         (200, 300),
         BOX_LENGTH,
@@ -74,11 +74,13 @@ pub fn generate_sc_template(
         PADDING_H,
         PADDING_V,
         &font,
+        image::Rgba([10, 10, 10, 255]),
+        24,
     );
     draw_boxes(
         &mut final_image,
         2,
-        image::Rgba([120, 0, 80, 255]),
+        image::Rgba([120, 0, 80, 180]),
         2,
         (1500, 300),
         BOX_LENGTH,
@@ -86,11 +88,13 @@ pub fn generate_sc_template(
         PADDING_H,
         PADDING_V,
         &font,
+        image::Rgba([10, 10, 10, 255]),
+        24,
     );
     draw_boxes(
         &mut final_image,
         8,
-        image::Rgba([0, 150, 80, 255]),
+        image::Rgba([0, 150, 80, 180]),
         2,
         (1000, 800),
         BOX_LENGTH,
@@ -98,6 +102,8 @@ pub fn generate_sc_template(
         PADDING_H,
         PADDING_V,
         &font,
+        image::Rgba([10, 10, 10, 255]),
+        24,
     );
 
     // Save the final image
@@ -106,13 +112,22 @@ pub fn generate_sc_template(
         .expect("Failed to save the final image");
 }
 
+#[derive(Debug, Clone)]
+struct TextParameters<'a> {
+    text: String,
+    text_size: u32,
+    text_color: image::Rgba<u8>,
+    font: &'a Font<'static>,
+}
+
 /// https://chat.openai.com
-#[derive(Debug, Clone, Copy)]
-struct BoxParameters {
+#[derive(Debug, Clone)]
+struct BoxParameters<'a> {
     position: (i32, i32),
     size: (u32, u32),
     color: image::Rgba<u8>,
     stroke_thickness: i32,
+    text_params: Option<TextParameters<'a>>,
 }
 
 /// Draw a thick line
@@ -136,12 +151,7 @@ fn draw_thicker_line_mut(
 }
 
 /// https://chat.openai.com
-fn draw_box(
-    image: &mut image::RgbaImage,
-    parameters: BoxParameters,
-    text: Option<&str>,
-    font: &Font<'static>,
-) {
+fn draw_box(image: &mut image::RgbaImage, parameters: BoxParameters) {
     imageproc::drawing::draw_filled_rect_mut(
         image,
         imageproc::rect::Rect::at(parameters.position.0, parameters.position.1)
@@ -178,16 +188,26 @@ fn draw_box(
         );
     }
 
-    match text {
-        Some(text) => {
+    match parameters.text_params {
+        Some(text_params) => {
+            let scale = Scale::uniform(text_params.text_size as f32);
+            let text_size =
+                imageproc::drawing::text_size(scale, text_params.font, &text_params.text);
+
+            // Center the text, both horizontally and vertically
             imageproc::drawing::draw_text_mut(
                 image,
-                image::Rgba([0, 255, 0, 255]),
-                (parameters.position.0 as u32 + 10).try_into().unwrap(),
-                (parameters.position.1 as u32 + 10).try_into().unwrap(),
-                Scale::uniform(12.0),
-                font,
-                text,
+                text_params.text_color,
+                (parameters.position.0 as u32 + parameters.size.0 / 2 - text_size.0 as u32 / 2)
+                    .try_into()
+                    .unwrap(),
+                // text_size.1 / 4 b/c 2 would make the bottom of the text on the bottom of the box
+                (parameters.position.1 as u32 + parameters.size.1 / 4 - text_size.1 as u32 / 2)
+                    .try_into()
+                    .unwrap(),
+                scale,
+                text_params.font,
+                &text_params.text,
             );
         }
         None => {}
@@ -206,8 +226,10 @@ fn draw_boxes(
     padding_h: i32,
     padding_v: i32,
     font: &Font<'static>,
+    text_color: image::Rgba<u8>,
+    text_size: u32,
 ) {
-    let draw_parameters = |x, y| BoxParameters {
+    let draw_parameters = |x, y, txt: &str| BoxParameters {
         position: (x, y),
         size: (
             small_box_length.try_into().unwrap(),
@@ -215,15 +237,19 @@ fn draw_boxes(
         ),
         color,
         stroke_thickness,
+        text_params: Some(TextParameters {
+            text: txt.to_string(),
+            text_size,
+            text_color,
+            font,
+        }),
     };
 
     let mut draw_4_in_cross = || {
         // top center
         draw_box(
             image,
-            draw_parameters(start_position.0, start_position.1),
-            Some("000"),
-            font,
+            draw_parameters(start_position.0, start_position.1, "000"),
         );
         // right, vertically in between "top center" and "bottom center"
         draw_box(
@@ -231,9 +257,8 @@ fn draw_boxes(
             draw_parameters(
                 start_position.0 + small_box_length + padding_h,
                 start_position.1 + small_box_height + padding_v,
+                "111",
             ),
-            Some("111"),
-            font,
         );
         // bottom center
         draw_box(
@@ -241,9 +266,8 @@ fn draw_boxes(
             draw_parameters(
                 start_position.0,
                 start_position.1 + 2 * (small_box_height + padding_v),
+                "222",
             ),
-            Some("222"),
-            font,
         );
         // left, vertically in between "top center" and "bottom center"
         draw_box(
@@ -251,9 +275,8 @@ fn draw_boxes(
             draw_parameters(
                 start_position.0 - small_box_length - padding_h,
                 start_position.1 + small_box_height + padding_v,
+                "333",
             ),
-            Some("333"),
-            font,
         );
     };
 
@@ -261,18 +284,15 @@ fn draw_boxes(
         2 => {
             draw_box(
                 image,
-                draw_parameters(start_position.0, start_position.1),
-                Some("aaa"),
-                font,
+                draw_parameters(start_position.0, start_position.1, "aaa"),
             );
             draw_box(
                 image,
                 draw_parameters(
                     start_position.0,
                     start_position.1 + small_box_height + padding_v,
+                    "bbb",
                 ),
-                Some("bbb"),
-                font,
             );
         }
         4 => {
@@ -289,9 +309,8 @@ fn draw_boxes(
                 draw_parameters(
                     start_position.0 + small_box_length + padding_h,
                     start_position.1,
+                    "aaa",
                 ),
-                Some("aaa"),
-                font,
             );
             // top left
             draw_box(
@@ -299,9 +318,8 @@ fn draw_boxes(
                 draw_parameters(
                     start_position.0 - small_box_length - padding_h,
                     start_position.1,
+                    "bbb",
                 ),
-                Some("bbb"),
-                font,
             );
             // bottom right
             draw_box(
@@ -309,9 +327,8 @@ fn draw_boxes(
                 draw_parameters(
                     start_position.0 + small_box_length + padding_h,
                     start_position.1 + 2 * (small_box_height + padding_v),
+                    "ccc",
                 ),
-                Some("ccc"),
-                font,
             );
             // bottom left
             draw_box(
@@ -319,9 +336,8 @@ fn draw_boxes(
                 draw_parameters(
                     start_position.0 - small_box_length - padding_h,
                     start_position.1 + 2 * (small_box_height + padding_v),
+                    "ddd",
                 ),
-                Some("ddd"),
-                font,
             );
         }
         _ => {
