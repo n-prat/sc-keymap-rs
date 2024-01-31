@@ -525,19 +525,19 @@
     </actionmap>
     <actionmap name="vehicle_driver">
         <action name="v_boost">
-            <rebind input="js2_ " />
+            <rebind input="js2_button1" />
         </action>
         <action name="v_brake">
-            <rebind input="js2_ " />
+            <rebind input="js2_button108" />
         </action>
         <action name="v_move">
-            <rebind input="js2_ " />
+            <rebind input="js2_y" />
         </action>
         <action name="v_pitch">
             <rebind input="js1_ " />
         </action>
         <action name="v_yaw">
-            <rebind input="js1_ " />
+            <rebind input="js2_rotx" />
         </action>
     </actionmap>
     <actionmap name="player_input_optical_tracking">

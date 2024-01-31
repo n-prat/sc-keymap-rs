@@ -274,6 +274,12 @@ fn draw_box(image: &mut image::RgbaImage, parameters: BoxParameters) {
 }
 
 /// https://chat.openai.com
+///
+/// `texts`: order is important; it MUST match with how "vkb_template_params.json" is handled
+/// - 2 boxes: vertical, top -> bottom
+/// - 3 boxes: horizontal, left -> right
+/// - 4 boxes: clockwise, starts from NORTH: N -> E -> S -> W
+/// - 8 boxes: clockwise, starts from NORTH = N -> NE -> E -> SE -> S -> SW -> W -> NW
 fn draw_boxes(
     image: &mut image::RgbaImage,
     pattern: usize,
@@ -307,11 +313,11 @@ fn draw_boxes(
         }),
     };
 
-    let mut draw_4_in_cross = || {
+    let mut draw_4_in_cross = |text_a, text_b, text_c, text_d| {
         // top center
         draw_box(
             image,
-            draw_parameters(start_position.0, start_position.1, &texts[0]),
+            draw_parameters(start_position.0, start_position.1, text_a),
         );
         // right, vertically in between "top center" and "bottom center"
         draw_box(
@@ -319,7 +325,7 @@ fn draw_boxes(
             draw_parameters(
                 start_position.0 + small_box_length + padding_h,
                 start_position.1 + small_box_height + padding_v,
-                &texts[1],
+                text_b,
             ),
         );
         // bottom center
@@ -328,7 +334,7 @@ fn draw_boxes(
             draw_parameters(
                 start_position.0,
                 start_position.1 + 2 * (small_box_height + padding_v),
-                &texts[2],
+                text_c,
             ),
         );
         // left, vertically in between "top center" and "bottom center"
@@ -337,7 +343,7 @@ fn draw_boxes(
             draw_parameters(
                 start_position.0 - small_box_length - padding_h,
                 start_position.1 + small_box_height + padding_v,
-                &texts[3],
+                text_d,
             ),
         );
     };
@@ -358,46 +364,46 @@ fn draw_boxes(
             );
         }
         4 => {
-            draw_4_in_cross();
+            draw_4_in_cross(&texts[0], &texts[1], &texts[2], &texts[3]);
         }
         8 => {
             // the 4 as above
-            draw_4_in_cross();
+            draw_4_in_cross(&texts[0], &texts[2], &texts[4], &texts[6]);
 
             // PLUS:
-            // top right
+            // top right = NE
             draw_box(
                 image,
                 draw_parameters(
                     start_position.0 + small_box_length + padding_h,
                     start_position.1,
-                    &texts[4],
+                    &texts[1],
                 ),
             );
-            // top left
+            // bottom right = SE
+            draw_box(
+                image,
+                draw_parameters(
+                    start_position.0 + small_box_length + padding_h,
+                    start_position.1 + 2 * (small_box_height + padding_v),
+                    &texts[3],
+                ),
+            );
+            // bottom left = SW
             draw_box(
                 image,
                 draw_parameters(
                     start_position.0 - small_box_length - padding_h,
-                    start_position.1,
+                    start_position.1 + 2 * (small_box_height + padding_v),
                     &texts[5],
                 ),
             );
-            // bottom right
-            draw_box(
-                image,
-                draw_parameters(
-                    start_position.0 + small_box_length + padding_h,
-                    start_position.1 + 2 * (small_box_height + padding_v),
-                    &texts[6],
-                ),
-            );
-            // bottom left
+            // top left = NW
             draw_box(
                 image,
                 draw_parameters(
                     start_position.0 - small_box_length - padding_h,
-                    start_position.1 + 2 * (small_box_height + padding_v),
+                    start_position.1,
                     &texts[7],
                 ),
             );
