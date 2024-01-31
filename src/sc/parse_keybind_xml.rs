@@ -120,7 +120,10 @@ impl GameButtonsMapping {
     /// CHECK for:
     /// - "js1_button{virtual_button_id}"
     /// - "js2_button{virtual_button_id}"
-    pub fn get_action_from_virtual_button_id(&self, virtual_button_id: u8) -> Option<&Vec<String>> {
+    pub fn get_action_from_virtual_button_id(
+        &self,
+        virtual_button_id: &u8,
+    ) -> Option<&Vec<String>> {
         match self
             .map_virtual_button_to_actions
             .get(&format!("js1_button{}", virtual_button_id))

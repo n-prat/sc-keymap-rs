@@ -77,18 +77,40 @@ pub fn generate_sc_template(
             .map(|physical_name| {
                 // First: get the corresponding VIRTUAL button ID from "physical_name" in json
                 // TODO(2-sticks) handle two sticks
-                let virtual_button_ids = joysticks_mappings
+                let virtual_buttons = joysticks_mappings
                     .get_virtual_button_ids_from_info_or_user_desc(physical_name, false)
                     .unwrap();
 
                 // Next: get the game binding from this virtual_button_id
                 let mut actions_names: String = "".to_string();
-                for virtual_button_id in virtual_button_ids {
-                    match game_buttons_mapping.get_action_from_virtual_button_id(virtual_button_id)
+                for virtual_button in virtual_buttons {
+                    let modifier: String = match &virtual_button.kind {
+                        crate::button::VirtualButtonKind::Momentary(shift) => match shift {
+                            Some(shift_kind) => match shift_kind {
+                                crate::button::VirtualShiftKind::Shift1 => "[SHIFT1] ".to_string(),
+                                crate::button::VirtualShiftKind::Shift2 => "[SHIFT2] ".to_string(),
+                            },
+                            None => "".to_string(),
+                        },
+                        crate::button::VirtualButtonKind::Tempo(tempo) => match tempo {
+                            crate::button::VirtualTempoKind::Short => "[SHORT] ".to_string(),
+                            crate::button::VirtualTempoKind::Long => "[LONG] ".to_string(),
+                            crate::button::VirtualTempoKind::Double => "[DOUBLE] ".to_string(),
+                        },
+                    };
+
+                    let mut action_name_with_modifier = modifier;
+
+                    match game_buttons_mapping
+                        .get_action_from_virtual_button_id(virtual_button.get_id())
                     {
-                        Some(act_names) => actions_names.push_str(&act_names.join("\n")),
-                        None => actions_names.push_str("NO BINDING"),
+                        Some(act_names) => {
+                            action_name_with_modifier.push_str(&act_names.join("\n"));
+                        }
+                        None => action_name_with_modifier.push_str("NO BINDING"),
                     }
+
+                    actions_names.push_str(&action_name_with_modifier);
 
                     actions_names.push_str("\n");
                 }
