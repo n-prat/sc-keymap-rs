@@ -29,6 +29,8 @@ impl VkbBothSticksMappings {
     /// We are looking for a VIRTUAL BUTTON (ID) whose PARENT (PHYSICAL) BUTTON
     /// has "info" == `info_or_user_desc` or "user_desc" == `info_or_user_desc`
     ///
+    // TODO is this OK? should it return a Vec? Add more tests with STD+SHIFT1+SHIFT2 from real bininds
+    // and check
     pub fn get_virtual_button_ids_from_info_or_user_desc(
         &self,
         info_or_user_desc: &str,

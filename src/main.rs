@@ -53,16 +53,9 @@ pub struct Args {
     #[clap(long, value_delimiter = ',')]
     pub vkb_reports_paths: Option<Vec<PathBuf>>,
 
-    #[clap(long)]
-    pub vkb_template_path: Option<PathBuf>,
-
     /// Optional path to a csv button_id -> user provided description
     #[clap(long)]
     pub vkb_user_provided_data_path: Option<PathBuf>,
-
-    /// Optional output png path; only applicable if `vkb_template_path`
-    #[clap(short, long)]
-    pub vkb_output_png_path: Option<PathBuf>,
 
     /// Optional path to a "vkb_template_params.json" cf `TemplateJsonParamaters`
     #[clap(long)]
