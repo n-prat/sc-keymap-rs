@@ -2,6 +2,14 @@
 //! They are usually obtained after parsing a joystick configuration directly; NOT from exported game mapping.
 //!
 
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum ButtonError {
+    #[error("could not find info_or_user_desc : `{info_or_user_desc}`")]
+    ButtonNotFound { info_or_user_desc: String },
+}
+
 #[derive(PartialEq, Clone)]
 pub(crate) enum TempoKind {
     /// Short+Long press
@@ -97,41 +105,119 @@ pub(crate) enum PhysicalButtonKind {
     MicrostickModeSwitch,
 }
 
+#[derive(PartialEq, Clone, Debug)]
+pub(crate) enum VirtualTempoKind {
+    Short,
+    Long,
+    Double,
+}
+
+#[derive(PartialEq, Clone, Debug)]
+pub(crate) enum VirtualShiftKind {
+    Shift1,
+    Shift2,
+}
+
+/// To properly print the final keybinds we need to know how a button is "reached".
+/// eg is it a standard press, a long press, a double press, is SHIFT1 or SHIFT2 required ?
+///
+#[derive(PartialEq, Clone, Debug)]
+pub(crate) enum VirtualButtonKind {
+    /// From `PhysicalButtonKind::Momentary`
+    Momentary(Option<VirtualShiftKind>),
+    /// From `PhysicalButtonKind::Tempo`
+    Tempo(VirtualTempoKind),
+}
+
+/// Intermediate struct only needed because that way we can have eg `Vec<VirtualButton>`
+/// which is better than having `Vec<ButtonKind>` when we known they are all `Virtual` variants
+///
+#[derive(PartialEq, Clone)]
+pub(crate) struct VirtualButton {
+    pub(crate) id: u8,
+    pub(crate) kind: VirtualButtonKind,
+}
+
+impl VirtualButton {
+    pub(crate) fn get_id(&self) -> &u8 {
+        &self.id
+    }
+}
+
+impl core::fmt::Debug for VirtualButton {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        match &self.kind {
+            VirtualButtonKind::Momentary(shift) => {
+                write!(f, "VirtualButton [{} ({:?})]", self.id, shift)
+            }
+            VirtualButtonKind::Tempo(tempo_kind) => {
+                write!(f, "VirtualButton [{} ({:?})]", self.id, tempo_kind,)
+            }
+        }
+    }
+}
+
+// impl TryFrom<Button> for VirtualButton {
+//     type Error = ButtonError;
+
+//     fn try_from(value: Button) -> Result<Self, Self::Error> {
+//         match value {}
+//     }
+// }
+
+/// Intermediate struct only needed because that way we can have eg `Vec<VirtualButton>`
+/// which is better than having `Vec<ButtonKind>` when we known they are all `Virtual` variants
+///
+#[derive(PartialEq, Clone)]
+pub(crate) struct PhysicalButton {
+    id: u8,
+    kind: PhysicalButtonKind,
+    info: String,
+    extended_desc: String,
+    user_desc: String,
+}
+
+impl PhysicalButton {
+    pub(crate) fn get_id(&self) -> &u8 {
+        &self.id
+    }
+
+    pub(crate) fn get_info(&self) -> &String {
+        &self.info
+    }
+
+    pub(crate) fn get_user_desc(&self) -> &String {
+        &self.user_desc
+    }
+
+    pub(crate) fn get_kind(&self) -> &PhysicalButtonKind {
+        &self.kind
+    }
+}
+
 /// This SHOULD(is) pretty generic; ie not really related to VKB
 #[derive(PartialEq, Clone)]
 pub(crate) enum ButtonKind {
     /// This matches a "b2" field in xml
     /// To get the ID we need to parse the desc...
-    Physical {
-        id: u8,
-        kind: PhysicalButtonKind,
-        info: String,
-        extended_desc: String,
-        user_desc: String,
-    },
+    Physical(PhysicalButton),
     /// Virtual/Logical
     /// This matches a "b3" field in xml
     /// In this case the "m8" field directly contains the ID, no parsing needed.
     /// The "m9" SHOULD also contain the same ID in the desc.
-    Virtual { id: u8 },
+    Virtual(VirtualButton),
 }
 
 impl core::fmt::Debug for ButtonKind {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
-            ButtonKind::Physical {
-                id,
-                kind,
-                info,
-                extended_desc,
-                user_desc,
-            } => write!(
+            ButtonKind::Physical(button) => write!(
                 f,
-                "PhysicalButton [{} {} {} {} ({kind:?})]",
-                id, info, extended_desc, user_desc
+                "PhysicalButton [{} {} {} {} ({:?})]",
+                button.id, button.info, button.extended_desc, button.user_desc, button.kind
             ),
-            ButtonKind::Virtual { id } => {
-                write!(f, "VirtualButton [{}]", id)
+            ButtonKind::Virtual(button) => {
+                write!(f, "VirtualButton [{:?}]", button)
             }
         }
     }
@@ -145,7 +231,7 @@ impl core::fmt::Debug for ButtonKind {
 /// etc
 #[derive(PartialEq, Clone)]
 pub(crate) struct Button {
-    pub(crate) kind: ButtonKind,
+    kind: ButtonKind,
 }
 
 impl core::fmt::Debug for Button {
@@ -156,29 +242,39 @@ impl core::fmt::Debug for Button {
 }
 
 impl Button {
+    pub(super) fn new_physical(
+        id: u8,
+        kind: PhysicalButtonKind,
+        info: String,
+        extended_desc: String,
+        user_desc: String,
+    ) -> Button {
+        Button {
+            kind: ButtonKind::Physical(PhysicalButton {
+                id,
+                kind,
+                info,
+                extended_desc,
+                user_desc,
+            }),
+        }
+    }
+
     pub(super) fn get_id(&self) -> u8 {
         match &self.kind {
-            ButtonKind::Physical {
-                id,
-                kind: _,
-                info: _,
-                extended_desc: _,
-                user_desc: _,
-            } => *id,
-            ButtonKind::Virtual { id } => *id,
+            ButtonKind::Physical(button) => *button.get_id(),
+            ButtonKind::Virtual(button) => *button.get_id(),
         }
     }
 
     pub(super) fn set_user_desc(&mut self, new_user_desc: &str) {
         match &mut self.kind {
-            ButtonKind::Physical {
-                id: _,
-                kind: _,
-                info: _,
-                extended_desc: _,
-                user_desc,
-            } => *user_desc = new_user_desc.to_string(),
-            ButtonKind::Virtual { id: _ } => {}
+            ButtonKind::Physical(button) => button.user_desc = new_user_desc.to_string(),
+            ButtonKind::Virtual(_) => {}
         }
+    }
+
+    pub(crate) fn get_kind(&self) -> &ButtonKind {
+        &self.kind
     }
 }

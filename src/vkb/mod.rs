@@ -35,7 +35,7 @@ impl VkbBothSticksMappings {
         &self,
         info_or_user_desc: &str,
         use_second_stick: bool,
-    ) -> Result<Vec<u8>, VkbError> {
+    ) -> Result<Vec<crate::button::VirtualButton>, VkbError> {
         let stick = match use_second_stick {
             true => &self.vkb_mappings1,
             false => &self.vkb_mappings2,
@@ -49,20 +49,16 @@ impl VkbBothSticksMappings {
             .iter()
         {
             for parent_physical_button in parent_physical_buttons {
-                match &parent_physical_button.kind {
-                    crate::button::ButtonKind::Physical {
-                        id: _,
-                        kind: _,
-                        info,
-                        extended_desc: _,
-                        user_desc,
-                    } => {
-                        if info_or_user_desc == info || info_or_user_desc == user_desc {
+                match &parent_physical_button.get_kind() {
+                    crate::button::ButtonKind::Physical(button) => {
+                        if info_or_user_desc == button.get_info()
+                            || info_or_user_desc == button.get_user_desc()
+                        {
                             found_physical_button_id = Some(parent_physical_button.get_id());
                             break;
                         }
                     }
-                    crate::button::ButtonKind::Virtual { id } => {
+                    crate::button::ButtonKind::Virtual(button) => {
                         unimplemented!("parent SHOULD be physical NOT virtual button!")
                     }
                 }
@@ -72,7 +68,7 @@ impl VkbBothSticksMappings {
         // Next we MUST get ALL the children VIRTUAL buttons
         match found_physical_button_id {
             Some(found_physical_button_id) => Ok(stick
-                .map_physical_button_id_to_children_virtual_button_ids
+                .map_physical_button_id_to_children_virtual_buttons
                 .get(&found_physical_button_id).expect("physical button ID not found in map_physical_button_id_to_children_virtual_button_ids!").clone()),
             None => Err(VkbError::ButtonNotFound {
                 info_or_user_desc: info_or_user_desc.to_string(),
@@ -173,39 +169,35 @@ mod tests {
                 // Most basic case: a standard button, no user-injected data (so user_desc is empty)
                 (
                     44,
-                    vec![Button {
-                        kind: crate::button::ButtonKind::Physical {
-                            id: 27,
-                            kind: PhysicalButtonKind::Momentary {
-                                shift: Some(ShiftKind::Shift12 {
-                                    button_id_shift1: 44,
-                                    button_id_shift2: 82,
-                                }),
-                            },
-                            info: "(A4 left)".to_string(),
-                            extended_desc: "- Button with momentary action".to_string(),
-                            user_desc: "".to_string(),
+                    vec![Button::new_physical(
+                        27,
+                        PhysicalButtonKind::Momentary {
+                            shift: Some(ShiftKind::Shift12 {
+                                button_id_shift1: 44,
+                                button_id_shift2: 82,
+                            }),
                         },
-                    }],
+                        "(A4 left)".to_string(),
+                        "- Button with momentary action".to_string(),
+                        "".to_string(),
+                    )],
                 ),
                 // More advanced case: the key (108) is NOT found in PhysicalButtonKind
                 // Here we have both "info" and "user_desc" -> "user_desc" is ignored
                 (
                     108,
-                    vec![Button {
-                        kind: crate::button::ButtonKind::Physical {
-                            id: 12,
-                            kind: PhysicalButtonKind::Momentary {
-                                shift: Some(ShiftKind::Shift12 {
-                                    button_id_shift1: 100,
-                                    button_id_shift2: 101,
-                                }),
-                            },
-                            info: "(A2)".to_string(),
-                            extended_desc: "- Button with momentary action".to_string(),
-                            user_desc: "Thumb red button".to_string(),
+                    vec![Button::new_physical(
+                        12,
+                        PhysicalButtonKind::Momentary {
+                            shift: Some(ShiftKind::Shift12 {
+                                button_id_shift1: 100,
+                                button_id_shift2: 101,
+                            }),
                         },
-                    }],
+                        "(A2)".to_string(),
+                        "- Button with momentary action".to_string(),
+                        "Thumb red button".to_string(),
+                    )],
                 ),
                 // Special case: 8-ways POV stick
                 // It is a toggle in VKB config so here we have NO link from physical in VkbDevCfg to physical button
@@ -213,19 +205,17 @@ mod tests {
                 // Here we SKIP "info" and only map using "user_desc"
                 (
                     72,
-                    vec![Button {
-                        kind: crate::button::ButtonKind::Physical {
-                            id: 72,
-                            kind: PhysicalButtonKind::Momentary {
-                                shift: Some(ShiftKind::Shift2 {
-                                    button_id_shift2: 80,
-                                }),
-                            },
-                            info: "".to_string(),
-                            extended_desc: "- Button with momentary action".to_string(),
-                            user_desc: "A1 8-way ministick NW".to_string(),
+                    vec![Button::new_physical(
+                        72,
+                        PhysicalButtonKind::Momentary {
+                            shift: Some(ShiftKind::Shift2 {
+                                button_id_shift2: 80,
+                            }),
                         },
-                    }],
+                        "".to_string(),
+                        "- Button with momentary action".to_string(),
+                        "A1 8-way ministick NW".to_string(),
+                    )],
                 ),
             ]),
             map_physical_button_id_to_children_virtual_button_ids: hash_map::HashMap::from([
@@ -268,7 +258,8 @@ mod tests {
         assert_eq!(
             sample_mappings
                 .get_virtual_button_ids_from_info_or_user_desc("(A4 left)", false)
-                .unwrap(),
+                .unwrap()
+                .get_id(),
             44
         );
     }
@@ -280,7 +271,8 @@ mod tests {
         assert_eq!(
             sample_mappings
                 .get_virtual_button_ids_from_info_or_user_desc("(A2)", false)
-                .unwrap(),
+                .unwrap()
+                .get_id(),
             108
         );
     }
@@ -292,7 +284,8 @@ mod tests {
         assert_eq!(
             sample_mappings
                 .get_virtual_button_ids_from_info_or_user_desc("A1 8-way ministick NW", false)
-                .unwrap(),
+                .unwrap()
+                .get_id(),
             72
         );
     }
