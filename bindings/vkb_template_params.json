@@ -14,17 +14,17 @@
         "A1 8-way ministick NW"
       ],
       "user_desc": "MiniStick - 8 ways - top of stick",
-      "desired_box_position_in_final_png": [
-        2250,
-        50
+      "desired_box_position_relative_to_center_full_png": [
+        725,
+        -875
       ],
-      "connector_start_line_position_in_final_png": [
-        1550,
-        225
+      "connector_start_line_position_relative_to_center_full_png": [
+        200,
+        -675
       ],
-      "connector_end_line_position_in_final_png": [
-        1880,
-        190
+      "connector_end_line_position_relative_to_center_full_png": [
+        360,
+        -750
       ]
     },
     {
@@ -34,17 +34,17 @@
         "(F3)"
       ],
       "user_desc": "F1/F2/F3 TEMPO buttons - base of stick",
-      "desired_box_position_in_final_png": [
-        300,
-        1100
+      "desired_box_position_relative_to_center_full_png": [
+        -1000,
+        200
       ],
-      "connector_start_line_position_in_final_png": [
-        1000,
-        1250
+      "connector_start_line_position_relative_to_center_full_png": [
+        -450,
+        285
       ],
-      "connector_end_line_position_in_final_png": [
-        800,
-        1200
+      "connector_end_line_position_relative_to_center_full_png": [
+        -300,
+        350
       ]
     }
   ]

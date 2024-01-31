@@ -36,23 +36,29 @@ pub fn generate_sc_template(
 
     ////////////////////////////////////////////////////////////////////////////
 
-    // Draw the first image onto the final image
+    // Draw the main image; usually this is the "front" or "3/4 front" view
     let image_full_front =
         imageops::resize(&image_full_front, 1800, 1800, imageops::FilterType::Nearest);
+    let full_png_top_left_position: (i32, i32) =
+        ((WIDTH as f32 * 0.15) as i32, (HEIGHT as f32 * 0.0) as i32);
     image::imageops::overlay(
         &mut final_image,
         &image_full_front,
-        (WIDTH as f32 * 0.15) as i64,
-        (HEIGHT as f32 * 0.0) as i64,
+        full_png_top_left_position.0.into(),
+        full_png_top_left_position.1.into(),
     );
+    let full_png_center_position =
+        transform_relative_coords_to_absolute((1800 / 2, 1800 / 2), full_png_top_left_position);
 
-    // Draw the second image onto the final image with an offset
+    // Draw the side/back
     let image_back = imageops::resize(&image_back, 400, 400, imageops::FilterType::Nearest);
+    let side_png_position: (i32, i32) =
+        ((WIDTH as f32 * 0.05) as i32, (HEIGHT as f32 * 0.2) as i32);
     image::imageops::overlay(
         &mut final_image,
         &image_back,
-        (WIDTH as f32 * 0.05) as i64,
-        (HEIGHT as f32 * 0.2) as i64,
+        side_png_position.0.into(),
+        side_png_position.1.into(),
     );
 
     ////////////////////////////////////////////////////////////////////////////
@@ -126,7 +132,10 @@ pub fn generate_sc_template(
                     button_param.physical_names.len(),
                     image::Rgba([0, 150, 80, 180]),
                     2,
-                    button_param.desired_box_position_in_final_png,
+                    transform_relative_coords_to_absolute(
+                        full_png_center_position,
+                        button_param.desired_box_position_relative_to_center_full_png,
+                    ),
                     BOX_LENGTH,
                     BOX_HEIGHT,
                     PADDING_H,
@@ -139,8 +148,14 @@ pub fn generate_sc_template(
 
                 draw_thicker_line_mut(
                     &mut final_image,
-                    button_param.connector_start_line_position_in_final_png,
-                    button_param.connector_end_line_position_in_final_png,
+                    transform_relative_coords_to_absolute(
+                        full_png_center_position,
+                        button_param.connector_start_line_position_relative_to_center_full_png,
+                    ),
+                    transform_relative_coords_to_absolute(
+                        full_png_center_position,
+                        button_param.connector_end_line_position_relative_to_center_full_png,
+                    ),
                     4,
                     line_color,
                 );
@@ -254,13 +269,13 @@ fn draw_box(image: &mut image::RgbaImage, parameters: BoxParameters) {
                 imageproc::drawing::draw_text_mut(
                     image,
                     text_params.text_color,
-                    (parameters.position.0 as u32 + parameters.size.0 / 2
-                        - max_text_width as u32 / 2)
+                    (parameters.position.0 + parameters.size.0 as i32 / 2
+                        - max_text_width as i32 / 2)
                         .try_into()
                         .unwrap(),
                     // text_size.1 / 4 b/c 2 would make the bottom of the text on the bottom of the box
-                    (parameters.position.1 as u32 + parameters.size.1 / 4 - text_height as u32 / 2
-                        + line_no as u32 * text_height as u32)
+                    (parameters.position.1 + parameters.size.1 as i32 / 4 - text_height as i32 / 2
+                        + line_no as i32 * text_height as i32)
                         .try_into()
                         .unwrap(),
                     scale,
@@ -468,7 +483,11 @@ struct TemplateJsonButtonOrStickParameters {
     physical_names: Vec<String>,
     /// User-friendly description: eg "Red thumb button top of stick"
     user_desc: String,
-    desired_box_position_in_final_png: (i32, i32),
-    connector_start_line_position_in_final_png: (i32, i32),
-    connector_end_line_position_in_final_png: (i32, i32),
+    desired_box_position_relative_to_center_full_png: (i32, i32),
+    connector_start_line_position_relative_to_center_full_png: (i32, i32),
+    connector_end_line_position_relative_to_center_full_png: (i32, i32),
+}
+
+fn transform_relative_coords_to_absolute(add: (i32, i32), relative_to: (i32, i32)) -> (i32, i32) {
+    (add.0 + relative_to.0, add.1 + relative_to.1)
 }
