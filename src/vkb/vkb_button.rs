@@ -91,6 +91,28 @@ impl JoystickButtonsMapping {
             }
         }
     }
+
+    /// CHECK/LOG the "free" Virtual buttons
+    /// VkbDevCfg "auto" should probably work but it ends up duplicating virtual buttons
+    /// This is REALLY useful when trying to add SHIFT1/2/TEMPO to an existing button without messing up existing keybinds
+    pub(crate) fn log_free_virtual_buttons(&self) -> Vec<u8> {
+        const NB_VIRTUAL_BUTTONS: u8 = 128;
+
+        let mut unused_virtual_buttons = vec![];
+
+        for i in 1..NB_VIRTUAL_BUTTONS {
+            if !self
+                .map_virtual_button_id_to_parent_physical_buttons
+                .contains_key(&i)
+            {
+                unused_virtual_buttons.push(i);
+            }
+        }
+
+        log::info!("unused virtual buttons : {unused_virtual_buttons:?}");
+
+        unused_virtual_buttons
+    }
 }
 
 impl TryFrom<VkbReport> for JoystickButtonsMapping {

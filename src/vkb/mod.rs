@@ -112,6 +112,8 @@ fn check_report(
         None => {}
     }
 
+    vkb_buttons.log_free_virtual_buttons();
+
     vkb_buttons
 }
 
