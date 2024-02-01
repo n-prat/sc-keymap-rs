@@ -40,7 +40,7 @@ pub fn generate_sc_template(
     let image_full_front =
         imageops::resize(&image_full_front, 1800, 1800, imageops::FilterType::Nearest);
     let full_png_top_left_position: (i32, i32) =
-        ((WIDTH as f32 * 0.15) as i32, (HEIGHT as f32 * 0.0) as i32);
+        ((WIDTH as f32 * 0.3) as i32, (HEIGHT as f32 * 0.0) as i32);
     image::imageops::overlay(
         &mut final_image,
         &image_full_front,
@@ -126,7 +126,7 @@ pub fn generate_sc_template(
             .collect();
 
         match button_param.physical_names.len() {
-            1 | 2 | 4 | 8 | 3 => {
+            1 | 2 | 5 | 8 | 3 => {
                 draw_boxes(
                     &mut final_image,
                     button_param.physical_names.len(),
@@ -293,7 +293,7 @@ fn draw_box(image: &mut image::RgbaImage, parameters: BoxParameters) {
 /// `texts`: order is important; it MUST match with how "vkb_template_params.json" is handled
 /// - 2 boxes: vertical, top -> bottom
 /// - 3 boxes: horizontal, left -> right
-/// - 4 boxes: clockwise, starts from NORTH: N -> E -> S -> W
+/// - 5 boxes: clockwise, starts from NORTH: N -> E -> S -> W, then center (ie the ministick "push"/"click"/"press")
 /// - 8 boxes: clockwise, starts from NORTH = N -> NE -> E -> SE -> S -> SW -> W -> NW
 fn draw_boxes(
     image: &mut image::RgbaImage,
@@ -328,7 +328,7 @@ fn draw_boxes(
         }),
     };
 
-    let mut draw_4_in_cross = |text_a, text_b, text_c, text_d| {
+    let mut draw_4_in_cross = |text_a, text_b, text_c, text_d, text_e| {
         // top center
         draw_box(
             image,
@@ -361,6 +361,15 @@ fn draw_boxes(
                 text_d,
             ),
         );
+        // center center, "push"/"click"/"press"
+        draw_box(
+            image,
+            draw_parameters(
+                start_position.0,
+                start_position.1 + small_box_height + padding_v,
+                text_e,
+            ),
+        );
     };
 
     match pattern {
@@ -378,12 +387,12 @@ fn draw_boxes(
                 ),
             );
         }
-        4 => {
-            draw_4_in_cross(&texts[0], &texts[1], &texts[2], &texts[3]);
+        5 => {
+            draw_4_in_cross(&texts[0], &texts[1], &texts[2], &texts[3], &texts[4]);
         }
         8 => {
             // the 4 as above
-            draw_4_in_cross(&texts[0], &texts[2], &texts[4], &texts[6]);
+            draw_4_in_cross(&texts[0], &texts[2], &texts[4], &texts[6], "");
 
             // PLUS:
             // top right = NE
@@ -457,7 +466,7 @@ fn draw_boxes(
         }
         _ => {
             // Handle other cases or provide a default behavior
-            unimplemented!("draw_boxes: pattern = only 1/2/4/8 are supported");
+            unimplemented!("draw_boxes: pattern = only 1/2/5/8 are supported");
         }
     }
 }
@@ -484,7 +493,9 @@ struct TemplateJsonButtonOrStickParameters {
     /// User-friendly description: eg "Red thumb button top of stick"
     user_desc: String,
     desired_box_position_relative_to_center_full_png: (i32, i32),
+    /// By convention: `start` is the joystick button
     connector_start_line_position_relative_to_center_full_png: (i32, i32),
+    /// By convention: `end` is the box ie near `desired_box_position`
     connector_end_line_position_relative_to_center_full_png: (i32, i32),
 }
 
