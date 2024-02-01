@@ -1,4 +1,6 @@
 pub mod button;
+pub mod html;
+pub mod html2;
 pub mod sc;
 pub mod template_gen;
 pub mod vkb;

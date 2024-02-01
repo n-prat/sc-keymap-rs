@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use sc_keymap_rs::{
+    html, html2,
     sc::parse_keybind_xml,
     template_gen::generate_sc_template,
     vkb::{self, parse_and_check_vkb_both_sticks},
@@ -174,6 +175,9 @@ fn main() -> Result<(), Error> {
             println!("SKIP : missing game and/or devices mappings and/or arg --vkb-template-path; nothing to do...");
         }
     }
+
+    html::render_template();
+    html2::render_html();
 
     Ok(())
 }
