@@ -5,11 +5,11 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use crate::sc::parse_keybind_xml;
-use crate::vkb::VkbBothSticksMappings;
+use crate::vkb::vkb_button::JoystickButtonsMapping;
 
 pub fn generate_sc_template(
     game_buttons_mapping: parse_keybind_xml::GameButtonsMapping,
-    joysticks_mappings: VkbBothSticksMappings,
+    joysticks_mappings: JoystickButtonsMapping,
     json_template_params_path: PathBuf,
 ) {
     ////////////////////////////////////////////////////////////////////////////
@@ -101,7 +101,7 @@ pub fn generate_sc_template(
                 // First: get the corresponding VIRTUAL button ID from "physical_name" in json
                 // TODO(2-sticks) handle two sticks
                 let virtual_buttons = joysticks_mappings
-                    .get_virtual_button_ids_from_info_or_user_desc(physical_name, false)
+                    .get_virtual_button_ids_from_info_or_user_desc(physical_name)
                     .unwrap();
 
                 // Next: get the game binding from this virtual_button_id
@@ -134,9 +134,10 @@ pub fn generate_sc_template(
 
                             let mut action_name_with_modifier = modifier;
 
-                            match game_buttons_mapping
-                                .get_action_from_virtual_button_id(virtual_button.get_id(), &1)
-                            {
+                            match game_buttons_mapping.get_action_from_virtual_button_id(
+                                virtual_button.get_id(),
+                                &json_params.game_device_id,
+                            ) {
                                 Some(act_names) => {
                                     action_name_with_modifier.push_str(&act_names.join("\n"));
                                 }
@@ -216,7 +217,7 @@ pub fn generate_sc_template(
 
     // Save the final image
     final_image
-        .save("output.png")
+        .save(json_params.path_to_output_png)
         .expect("Failed to save the final image");
 }
 
@@ -522,6 +523,9 @@ fn draw_boxes(
 struct TemplateJsonParamaters {
     path_to_full_png: PathBuf,
     path_to_side_png: PathBuf,
+    path_to_output_png: PathBuf,
+    /// usually "1" or "2"
+    game_device_id: u8,
     buttons_params: Vec<TemplateJsonButtonOrStickParameters>,
 }
 

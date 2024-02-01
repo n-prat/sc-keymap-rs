@@ -8,86 +8,6 @@ use crate::button::{SpecialButtonKind, VirtualButtonOrSpecial};
 pub mod vkb_button;
 mod vkb_xml;
 
-#[derive(Debug)]
-pub struct VkbBothSticksMappings {
-    vkb_mappings1: JoystickButtonsMapping,
-    vkb_mappings2: JoystickButtonsMapping,
-}
-
-impl VkbBothSticksMappings {
-    pub fn get_first(&self) -> &JoystickButtonsMapping {
-        &self.vkb_mappings1
-    }
-
-    pub fn get_second(&self) -> &JoystickButtonsMapping {
-        &self.vkb_mappings2
-    }
-
-    /// Let's say info_or_user_desc = "A1 8-way ministick N" or "(A2)"
-    /// We want to return the corresponding VIRTUAL BUTTON IDS (plural!)
-    /// That way when a loop in the game binding, we can easily get the corresponding label from it eg "deploy landing gear" etc
-    ///
-    /// We are looking for a VIRTUAL BUTTON (ID) whose PARENT (PHYSICAL) BUTTON
-    /// has "info" == `info_or_user_desc` or "user_desc" == `info_or_user_desc`
-    ///
-    // TODO is this OK? should it return a Vec? Add more tests with STD+SHIFT1+SHIFT2 from real bininds
-    // and check
-    pub fn get_virtual_button_ids_from_info_or_user_desc(
-        &self,
-        info_or_user_desc: &str,
-        use_second_stick: bool,
-    ) -> Result<Vec<VirtualButtonOrSpecial>, VkbError> {
-        let stick = match use_second_stick {
-            true => &self.vkb_mappings1,
-            false => &self.vkb_mappings2,
-        };
-
-        // SHORTCUT to handle SHIFT1/SHIT2
-        // They are (usually) NOT bound to ingame actions because they are (usually) ONLY a modifier
-        // so the look up in `map_virtual_button_id_to_parent_physical_buttons` will NOT return anything
-        // TODO this probably is NOT handling when the button is BOTH a modifier AND a virtual button
-        match stick.map_special_buttons.get(info_or_user_desc) {
-            Some(special_kind) => {
-                return Ok(vec![VirtualButtonOrSpecial::Special(special_kind.clone())])
-            }
-            None => {}
-        };
-
-        let mut found_physical_button_id: Option<u8> = None;
-
-        // First: loop for the target PHYSICAL button; cf docstring
-        for (virtual_button_id, parent_physical_buttons) in stick
-            .map_virtual_button_id_to_parent_physical_buttons
-            .iter()
-        {
-            for parent_physical_button in parent_physical_buttons {
-                if info_or_user_desc == parent_physical_button.get_info()
-                    || info_or_user_desc == parent_physical_button.get_user_desc()
-                {
-                    found_physical_button_id = Some(*parent_physical_button.get_id());
-                    break;
-                }
-            }
-        }
-
-        // Next we MUST get ALL the children VIRTUAL buttons
-        match found_physical_button_id {
-            Some(found_physical_button_id) => {
-                let buttons = stick
-                .map_physical_button_id_to_children_virtual_buttons
-                .get(&found_physical_button_id).expect("physical button ID not found in map_physical_button_id_to_children_virtual_button_ids!").clone();
-
-                Ok(buttons
-                    .into_iter()
-                    .map(|button| VirtualButtonOrSpecial::Virtual(button))
-                    .collect())
-            }
-            None => Err(VkbError::ButtonNotFound {
-                info_or_user_desc: info_or_user_desc.to_string(),
-            }),
-        }
-    }
-}
 
 #[derive(Error, Debug)]
 pub enum VkbError {
@@ -131,18 +51,10 @@ fn check_report(
 
 /// Parse and process both the L and R sticks
 pub fn parse_and_check_vkb_both_sticks(
-    stick1_fp3_report_path: PathBuf,
-    stick2_fp3_report_path: PathBuf,
+    stick_fp3_report_path: PathBuf,
     vkb_user_provided_data_path: Option<PathBuf>,
-) -> Result<VkbBothSticksMappings, VkbError> {
-    let vkb_user_provided_data1 = match vkb_user_provided_data_path {
-        Some(ref vkb_user_provided_data_path) => {
-            let rdr = csv::Reader::from_path(vkb_user_provided_data_path).unwrap();
-            Some(rdr)
-        }
-        None => None,
-    };
-    let vkb_user_provided_data2 = match vkb_user_provided_data_path {
+) -> Result<JoystickButtonsMapping, VkbError> {
+    let vkb_user_provided_data = match vkb_user_provided_data_path {
         Some(ref vkb_user_provided_data_path) => {
             let rdr = csv::Reader::from_path(vkb_user_provided_data_path).unwrap();
             Some(rdr)
@@ -150,22 +62,13 @@ pub fn parse_and_check_vkb_both_sticks(
         None => None,
     };
 
-    let vkb_report1 = parse_report(stick1_fp3_report_path).unwrap();
-    log::info!("vkb_report : {:#?}", vkb_report1);
+    let vkb_report = parse_report(stick_fp3_report_path).unwrap();
+    log::info!("vkb_report : {:#?}", vkb_report);
 
-    let vkb_mappings1 = check_report(vkb_report1, vkb_user_provided_data1);
-    log::info!("vkb_buttons : {:#?}", vkb_mappings1);
+    let vkb_mappings = check_report(vkb_report, vkb_user_provided_data);
+    log::info!("vkb_buttons : {:#?}", vkb_mappings);
 
-    let vkb_report2 = parse_report(stick2_fp3_report_path).unwrap();
-    log::info!("vkb_report : {:#?}", vkb_report2);
-
-    let vkb_mappings2 = check_report(vkb_report2, vkb_user_provided_data2);
-    log::info!("vkb_buttons : {:#?}", vkb_mappings2);
-
-    Ok(VkbBothSticksMappings {
-        vkb_mappings1,
-        vkb_mappings2,
-    })
+    Ok(vkb_mappings)
 }
 
 #[cfg(test)]

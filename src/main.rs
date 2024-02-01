@@ -50,14 +50,16 @@ pub struct Args {
     /// ```
     /// does NOT matter!
     ///
-    #[clap(long, value_delimiter = ',')]
-    pub vkb_reports_paths: Option<Vec<PathBuf>>,
+    /// NOTE: side-specific! (obviously)
+    #[clap(long)]
+    pub vkb_report_path: Option<PathBuf>,
 
     /// Optional path to a csv button_id -> user provided description
     #[clap(long)]
     pub vkb_user_provided_data_path: Option<PathBuf>,
 
     /// Optional path to a "vkb_template_params.json" cf `TemplateJsonParamaters`
+    /// NOTE: side-specific!
     #[clap(long)]
     pub vkb_template_params_path: Option<PathBuf>,
 
@@ -127,10 +129,9 @@ fn main() -> Result<(), Error> {
     // Second step: parse the DEVICES mapping
     // NOTE: many mappings, one per physical sticks/devices
 
-    let joysticks_mappings = match &args.vkb_reports_paths {
-        Some(vkb_reports_paths) => parse_and_check_vkb_both_sticks(
-            vkb_reports_paths[0].clone(),
-            vkb_reports_paths[1].clone(),
+    let joysticks_mappings = match &args.vkb_report_path {
+        Some(vkb_report_path) => parse_and_check_vkb_both_sticks(
+            vkb_report_path.clone(),
             args.vkb_user_provided_data_path,
         )
         .ok(),
@@ -139,15 +140,6 @@ fn main() -> Result<(), Error> {
             None
         }
     };
-
-    match &joysticks_mappings {
-        Some(joysticks_mappings) => {
-            if joysticks_mappings.get_first() != joysticks_mappings.get_second() {
-                log::warn!("2 joystick mappings processed -> they are different!");
-            }
-        }
-        None => {}
-    }
 
     ////////////////////////////////////////////////////////////////////////////
     // Last step:

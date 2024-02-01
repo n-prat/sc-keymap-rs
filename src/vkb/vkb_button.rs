@@ -16,6 +16,7 @@ use crate::button::PhysicalButton;
 use crate::button::SpecialButtonKind;
 use crate::button::VirtualButton;
 use crate::button::VirtualButtonKind;
+use crate::button::VirtualButtonOrSpecial;
 use crate::button::VirtualShiftKind;
 use crate::button::VirtualTempoKind;
 use crate::button::{PhysicalButtonKind, ShiftKind, TempoKind};
@@ -116,6 +117,64 @@ impl JoystickButtonsMapping {
         log::info!("unused virtual buttons : {unused_virtual_buttons:?}");
 
         unused_virtual_buttons
+    }
+
+    /// Let's say info_or_user_desc = "A1 8-way ministick N" or "(A2)"
+    /// We want to return the corresponding VIRTUAL BUTTON IDS (plural!)
+    /// That way when a loop in the game binding, we can easily get the corresponding label from it eg "deploy landing gear" etc
+    ///
+    /// We are looking for a VIRTUAL BUTTON (ID) whose PARENT (PHYSICAL) BUTTON
+    /// has "info" == `info_or_user_desc` or "user_desc" == `info_or_user_desc`
+    ///
+    // TODO is this OK? should it return a Vec? Add more tests with STD+SHIFT1+SHIFT2 from real bininds
+    // and check
+    pub fn get_virtual_button_ids_from_info_or_user_desc(
+        &self,
+        info_or_user_desc: &str,
+    ) -> Result<Vec<VirtualButtonOrSpecial>, VkbError> {
+        // SHORTCUT to handle SHIFT1/SHIT2
+        // They are (usually) NOT bound to ingame actions because they are (usually) ONLY a modifier
+        // so the look up in `map_virtual_button_id_to_parent_physical_buttons` will NOT return anything
+        // TODO this probably is NOT handling when the button is BOTH a modifier AND a virtual button
+        match self.map_special_buttons.get(info_or_user_desc) {
+            Some(special_kind) => {
+                return Ok(vec![VirtualButtonOrSpecial::Special(special_kind.clone())])
+            }
+            None => {}
+        };
+
+        let mut found_physical_button_id: Option<u8> = None;
+
+        // First: loop for the target PHYSICAL button; cf docstring
+        for (virtual_button_id, parent_physical_buttons) in
+            self.map_virtual_button_id_to_parent_physical_buttons.iter()
+        {
+            for parent_physical_button in parent_physical_buttons {
+                if info_or_user_desc == parent_physical_button.get_info()
+                    || info_or_user_desc == parent_physical_button.get_user_desc()
+                {
+                    found_physical_button_id = Some(*parent_physical_button.get_id());
+                    break;
+                }
+            }
+        }
+
+        // Next we MUST get ALL the children VIRTUAL buttons
+        match found_physical_button_id {
+            Some(found_physical_button_id) => {
+                let buttons = self
+                .map_physical_button_id_to_children_virtual_buttons
+                .get(&found_physical_button_id).expect("physical button ID not found in map_physical_button_id_to_children_virtual_button_ids!").clone();
+
+                Ok(buttons
+                    .into_iter()
+                    .map(|button| VirtualButtonOrSpecial::Virtual(button))
+                    .collect())
+            }
+            None => Err(VkbError::ButtonNotFound {
+                info_or_user_desc: info_or_user_desc.to_string(),
+            }),
+        }
     }
 }
 
