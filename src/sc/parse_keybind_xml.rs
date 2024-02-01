@@ -120,22 +120,22 @@ impl GameButtonsMapping {
     /// CHECK for:
     /// - "js1_button{virtual_button_id}"
     /// - "js2_button{virtual_button_id}"
+    ///
+    /// `joystick_id` SHOULD be either "1" or "2"
+    /// or more exactly it MUST match the number/ID of "<options type="joystick" instance=" defined in
+    /// "layout_AAA_exported.xml"
+    ///
     pub fn get_action_from_virtual_button_id(
         &self,
         virtual_button_id: &u8,
+        joystick_id: &u8,
     ) -> Option<&Vec<String>> {
         match self
             .map_virtual_button_to_actions
-            .get(&format!("js1_button{}", virtual_button_id))
+            .get(&format!("js{joystick_id}_button{virtual_button_id}"))
         {
             Some(actions_names) => Some(actions_names),
-            None => match self
-                .map_virtual_button_to_actions
-                .get(&format!("js2_button{}", virtual_button_id))
-            {
-                Some(actions_names) => Some(actions_names),
-                None => None,
-            },
+            None => None,
         }
     }
 }

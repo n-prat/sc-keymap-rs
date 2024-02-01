@@ -108,7 +108,7 @@ pub fn generate_sc_template(
                     let mut action_name_with_modifier = modifier;
 
                     match game_buttons_mapping
-                        .get_action_from_virtual_button_id(virtual_button.get_id())
+                        .get_action_from_virtual_button_id(virtual_button.get_id(), &1)
                     {
                         Some(act_names) => {
                             action_name_with_modifier.push_str(&act_names.join("\n"));
