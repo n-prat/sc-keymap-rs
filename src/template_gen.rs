@@ -28,17 +28,23 @@ pub fn generate_sc_template(
     let image_back = image::open(json_params.path_to_side_png).expect("Failed to open image2");
 
     // Create a new RgbaImage with dimensions based on the larger of the two images
-    const WIDTH: u32 = 3000;
-    const HEIGHT: u32 = 1800;
-    // let width = image_full_front.width().max(image_back.width());
-    // let height = image_full_front.height().max(image_back.height());
+    const WIDTH: u32 = 4000;
+    const HEIGHT: u32 = 2000;
+    const FULL_PNG_RESIZED_WIDTH: i32 = 1800;
+    const FULL_PNG_RESIZED_HEIGHT: i32 = 1800;
+    const SIDE_PNG_RESIZED_WIDTH: i32 = 1200;
+    const SIDE_PNG_RESIZED_HEIGHT: i32 = 1200;
     let mut final_image = image::RgbaImage::new(WIDTH, HEIGHT);
 
     ////////////////////////////////////////////////////////////////////////////
 
     // Draw the main image; usually this is the "front" or "3/4 front" view
-    let image_full_front =
-        imageops::resize(&image_full_front, 1800, 1800, imageops::FilterType::Nearest);
+    let image_full_front = imageops::resize(
+        &image_full_front,
+        FULL_PNG_RESIZED_WIDTH as u32,
+        FULL_PNG_RESIZED_HEIGHT as u32,
+        imageops::FilterType::Nearest,
+    );
     let full_png_top_left_position: (i32, i32) =
         ((WIDTH as f32 * 0.3) as i32, (HEIGHT as f32 * 0.0) as i32);
     image::imageops::overlay(
@@ -47,18 +53,29 @@ pub fn generate_sc_template(
         full_png_top_left_position.0.into(),
         full_png_top_left_position.1.into(),
     );
-    let full_png_center_position =
-        transform_relative_coords_to_absolute((1800 / 2, 1800 / 2), full_png_top_left_position);
+    let full_png_center_position = transform_relative_coords_to_absolute(
+        (FULL_PNG_RESIZED_WIDTH / 2, FULL_PNG_RESIZED_HEIGHT / 2),
+        full_png_top_left_position,
+    );
 
     // Draw the side/back
-    let image_back = imageops::resize(&image_back, 400, 400, imageops::FilterType::Nearest);
-    let side_png_position: (i32, i32) =
-        ((WIDTH as f32 * 0.05) as i32, (HEIGHT as f32 * 0.2) as i32);
+    let image_back = imageops::resize(
+        &image_back,
+        SIDE_PNG_RESIZED_WIDTH as u32,
+        SIDE_PNG_RESIZED_HEIGHT as u32,
+        imageops::FilterType::Nearest,
+    );
+    let side_png_top_left_position: (i32, i32) =
+        ((WIDTH as f32 * 0.05) as i32, (HEIGHT as f32 * 0.3) as i32);
     image::imageops::overlay(
         &mut final_image,
         &image_back,
-        side_png_position.0.into(),
-        side_png_position.1.into(),
+        side_png_top_left_position.0.into(),
+        side_png_top_left_position.1.into(),
+    );
+    let side_png_center_position = transform_relative_coords_to_absolute(
+        (SIDE_PNG_RESIZED_WIDTH / 2, SIDE_PNG_RESIZED_HEIGHT / 2),
+        side_png_top_left_position,
     );
 
     ////////////////////////////////////////////////////////////////////////////
@@ -71,8 +88,8 @@ pub fn generate_sc_template(
     let font = rusttype::Font::try_from_bytes(font_data).expect("Failed to load font");
 
     // Draw boxes in a 4-way pattern with customizable color and stroke thickness
-    const BOX_LENGTH: i32 = 350;
-    const BOX_HEIGHT: i32 = 85;
+    const BOX_LENGTH: i32 = 500;
+    const BOX_HEIGHT: i32 = 110;
     const PADDING_H: i32 = 10;
     const PADDING_V: i32 = 10;
 
@@ -90,50 +107,78 @@ pub fn generate_sc_template(
                 // Next: get the game binding from this virtual_button_id
                 let mut actions_names: String = "".to_string();
                 for virtual_button in virtual_buttons {
-                    let modifier: String = match &virtual_button.kind {
-                        crate::button::VirtualButtonKind::Momentary(shift) => match shift {
-                            Some(shift_kind) => match shift_kind {
-                                crate::button::VirtualShiftKind::Shift1 => "[SHIFT1] ".to_string(),
-                                crate::button::VirtualShiftKind::Shift2 => "[SHIFT2] ".to_string(),
-                            },
-                            None => "".to_string(),
-                        },
-                        crate::button::VirtualButtonKind::Tempo(tempo) => match tempo {
-                            crate::button::VirtualTempoKind::Short => "[SHORT] ".to_string(),
-                            crate::button::VirtualTempoKind::Long => "[LONG] ".to_string(),
-                            crate::button::VirtualTempoKind::Double => "[DOUBLE] ".to_string(),
-                        },
-                    };
+                    match virtual_button {
+                        crate::button::VirtualButtonOrSpecial::Virtual(virtual_button) => {
+                            let modifier: String = match &virtual_button.kind {
+                                crate::button::VirtualButtonKind::Momentary(shift) => match shift {
+                                    Some(shift_kind) => match shift_kind {
+                                        crate::button::VirtualShiftKind::Shift1 => {
+                                            "[SHIFT1] ".to_string()
+                                        }
+                                        crate::button::VirtualShiftKind::Shift2 => {
+                                            "[SHIFT2] ".to_string()
+                                        }
+                                    },
+                                    None => "".to_string(),
+                                },
+                                crate::button::VirtualButtonKind::Tempo(tempo) => match tempo {
+                                    crate::button::VirtualTempoKind::Short => {
+                                        "[SHORT] ".to_string()
+                                    }
+                                    crate::button::VirtualTempoKind::Long => "[LONG] ".to_string(),
+                                    crate::button::VirtualTempoKind::Double => {
+                                        "[DOUBLE] ".to_string()
+                                    }
+                                },
+                            };
 
-                    let mut action_name_with_modifier = modifier;
+                            let mut action_name_with_modifier = modifier;
 
-                    match game_buttons_mapping
-                        .get_action_from_virtual_button_id(virtual_button.get_id(), &1)
-                    {
-                        Some(act_names) => {
-                            action_name_with_modifier.push_str(&act_names.join("\n"));
+                            match game_buttons_mapping
+                                .get_action_from_virtual_button_id(virtual_button.get_id(), &1)
+                            {
+                                Some(act_names) => {
+                                    action_name_with_modifier.push_str(&act_names.join("\n"));
+                                }
+                                None => action_name_with_modifier.push_str("NO BINDING"),
+                            }
+
+                            actions_names.push_str(&action_name_with_modifier);
+
+                            actions_names.push_str("\n");
                         }
-                        None => action_name_with_modifier.push_str("NO BINDING"),
+                        crate::button::VirtualButtonOrSpecial::Special(special_kind) => {
+                            match special_kind {
+                                crate::button::SpecialButtonKind::Shift1 => {
+                                    actions_names.push_str("SHIFT1")
+                                }
+                                crate::button::SpecialButtonKind::Shift2 => {
+                                    actions_names.push_str("SHIFT2")
+                                }
+                            }
+                        }
                     }
-
-                    actions_names.push_str(&action_name_with_modifier);
-
-                    actions_names.push_str("\n");
                 }
 
                 actions_names
             })
             .collect();
 
+        let reference_point = match button_param.is_using_full_png_center_as_reference {
+            true => full_png_center_position,
+            false => side_png_center_position,
+        };
+
         match button_param.physical_names.len() {
             1 | 2 | 5 | 8 | 3 => {
                 draw_boxes(
                     &mut final_image,
                     button_param.physical_names.len(),
-                    image::Rgba([0, 150, 80, 180]),
+                    // image::Rgba([240, 240, 240, 240]),
+                    image::Rgba([50, 50, 50, 220]),
                     2,
                     transform_relative_coords_to_absolute(
-                        full_png_center_position,
+                        reference_point,
                         button_param.desired_box_position_relative_to_center_full_png,
                     ),
                     BOX_LENGTH,
@@ -141,7 +186,8 @@ pub fn generate_sc_template(
                     PADDING_H,
                     PADDING_V,
                     &font,
-                    image::Rgba([200, 200, 10, 255]),
+                    // image::Rgba([26, 26, 26, 255]),
+                    image::Rgba([220, 220, 220, 255]),
                     24,
                     keybinds,
                 );
@@ -149,11 +195,11 @@ pub fn generate_sc_template(
                 draw_thicker_line_mut(
                     &mut final_image,
                     transform_relative_coords_to_absolute(
-                        full_png_center_position,
+                        reference_point,
                         button_param.connector_start_line_position_relative_to_center_full_png,
                     ),
                     transform_relative_coords_to_absolute(
-                        full_png_center_position,
+                        reference_point,
                         button_param.connector_end_line_position_relative_to_center_full_png,
                     ),
                     4,
@@ -256,13 +302,12 @@ fn draw_box(image: &mut image::RgbaImage, parameters: BoxParameters) {
             // height: use the max height
             let text_height =
                 imageproc::drawing::text_size(scale, text_params.font, &text_params.text).1;
-            // TODO width: use the longest b/w every lines
-            let max_text_width = imageproc::drawing::text_size(
-                scale,
-                text_params.font,
-                &text_params.text.split("\n").collect::<Vec<_>>()[0],
-            )
-            .0;
+            // width: use the longest b/w every lines
+            let mut max_text_width: i32 = 0;
+            for line in text_params.text.split("\n") {
+                max_text_width = max_text_width
+                    .max(imageproc::drawing::text_size(scale, text_params.font, &line).0)
+            }
 
             // Center the text, both horizontally and vertically
             for (line_no, line) in text_params.text.split("\n").enumerate() {
@@ -492,6 +537,8 @@ struct TemplateJsonButtonOrStickParameters {
     physical_names: Vec<String>,
     /// User-friendly description: eg "Red thumb button top of stick"
     user_desc: String,
+    /// Should the 3 points below be relative to the "face"(full) png, or the side one?
+    is_using_full_png_center_as_reference: bool,
     desired_box_position_relative_to_center_full_png: (i32, i32),
     /// By convention: `start` is the joystick button
     connector_start_line_position_relative_to_center_full_png: (i32, i32),

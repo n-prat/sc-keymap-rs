@@ -3,6 +3,7 @@ use std::{num::ParseIntError, path::PathBuf};
 use thiserror::Error;
 
 use self::vkb_button::JoystickButtonsMapping;
+use crate::button::{SpecialButtonKind, VirtualButtonOrSpecial};
 
 pub mod vkb_button;
 mod vkb_xml;
@@ -35,10 +36,21 @@ impl VkbBothSticksMappings {
         &self,
         info_or_user_desc: &str,
         use_second_stick: bool,
-    ) -> Result<Vec<crate::button::VirtualButton>, VkbError> {
+    ) -> Result<Vec<VirtualButtonOrSpecial>, VkbError> {
         let stick = match use_second_stick {
             true => &self.vkb_mappings1,
             false => &self.vkb_mappings2,
+        };
+
+        // SHORTCUT to handle SHIFT1/SHIT2
+        // They are (usually) NOT bound to ingame actions because they are (usually) ONLY a modifier
+        // so the look up in `map_virtual_button_id_to_parent_physical_buttons` will NOT return anything
+        // TODO this probably is NOT handling when the button is BOTH a modifier AND a virtual button
+        match stick.map_special_buttons.get(info_or_user_desc) {
+            Some(special_kind) => {
+                return Ok(vec![VirtualButtonOrSpecial::Special(special_kind.clone())])
+            }
+            None => {}
         };
 
         let mut found_physical_button_id: Option<u8> = None;
@@ -49,27 +61,27 @@ impl VkbBothSticksMappings {
             .iter()
         {
             for parent_physical_button in parent_physical_buttons {
-                match &parent_physical_button.get_kind() {
-                    crate::button::ButtonKind::Physical(button) => {
-                        if info_or_user_desc == button.get_info()
-                            || info_or_user_desc == button.get_user_desc()
-                        {
-                            found_physical_button_id = Some(parent_physical_button.get_id());
-                            break;
-                        }
-                    }
-                    crate::button::ButtonKind::Virtual(button) => {
-                        unimplemented!("parent SHOULD be physical NOT virtual button!")
-                    }
+                if info_or_user_desc == parent_physical_button.get_info()
+                    || info_or_user_desc == parent_physical_button.get_user_desc()
+                {
+                    found_physical_button_id = Some(*parent_physical_button.get_id());
+                    break;
                 }
             }
         }
 
         // Next we MUST get ALL the children VIRTUAL buttons
         match found_physical_button_id {
-            Some(found_physical_button_id) => Ok(stick
+            Some(found_physical_button_id) => {
+                let buttons = stick
                 .map_physical_button_id_to_children_virtual_buttons
-                .get(&found_physical_button_id).expect("physical button ID not found in map_physical_button_id_to_children_virtual_button_ids!").clone()),
+                .get(&found_physical_button_id).expect("physical button ID not found in map_physical_button_id_to_children_virtual_button_ids!").clone();
+
+                Ok(buttons
+                    .into_iter()
+                    .map(|button| VirtualButtonOrSpecial::Virtual(button))
+                    .collect())
+            }
             None => Err(VkbError::ButtonNotFound {
                 info_or_user_desc: info_or_user_desc.to_string(),
             }),

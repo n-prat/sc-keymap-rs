@@ -12,11 +12,13 @@ use scraper::Selector;
 use super::vkb_xml::VkbReport;
 use super::vkb_xml::VkbXmlButton;
 use super::VkbError;
+use crate::button::PhysicalButton;
+use crate::button::SpecialButtonKind;
 use crate::button::VirtualButton;
 use crate::button::VirtualButtonKind;
 use crate::button::VirtualShiftKind;
 use crate::button::VirtualTempoKind;
-use crate::button::{Button, ButtonKind, PhysicalButtonKind, ShiftKind, TempoKind};
+use crate::button::{PhysicalButtonKind, ShiftKind, TempoKind};
 
 /// Custom `TryFrom<VkbXmlButton>` allowing us to link a parent to a Virtual button
 // impl Button {
@@ -52,10 +54,12 @@ pub struct JoystickButtonsMapping {
     ///
     /// Note that is NOT detected by VkbDevCfg, probably because this NOT (necessarily) a bug;
     /// this is mostly a "waste of space".
-    pub(crate) map_virtual_button_id_to_parent_physical_buttons: HashMap<u8, Vec<Button>>,
+    pub(crate) map_virtual_button_id_to_parent_physical_buttons: HashMap<u8, Vec<PhysicalButton>>,
     /// Inverse of `map_virtual_button_id_to_physical_button`
     pub(crate) map_physical_button_id_to_children_virtual_buttons: HashMap<u8, Vec<VirtualButton>>,
     // pub(crate) physical_buttons_with_desc: Vec<PhysicalButtonWithDesc>,
+    /// MAP eg "(D1)" -> Shift1
+    pub(crate) map_special_buttons: HashMap<String, SpecialButtonKind>,
 }
 
 impl JoystickButtonsMapping {
@@ -81,7 +85,7 @@ impl JoystickButtonsMapping {
             .iter_mut()
         {
             for physical_button_parent in physical_buttons_parents.iter_mut() {
-                let user_desc = csv_records[physical_button_parent.get_id() as usize - 1]
+                let user_desc = csv_records[*physical_button_parent.get_id() as usize - 1]
                     .as_ref()
                     .expect("MISSING CSV RECORD")
                     .get(1)
@@ -121,12 +125,14 @@ impl TryFrom<VkbReport> for JoystickButtonsMapping {
     // TODO(add-CHECK) this should be 2 maps; one parent->children and one child->parent; that way we can display proper
     // warnings to find where the duplicates originate
     fn try_from(vkb_report: VkbReport) -> Result<Self, Self::Error> {
-        let mut map_virtual_button_id_to_parent_physical_buttons: HashMap<u8, Vec<Button>> =
+        let mut map_virtual_button_id_to_parent_physical_buttons: HashMap<u8, Vec<PhysicalButton>> =
             HashMap::new();
         let mut map_physical_button_id_to_children_virtual_buttons: HashMap<
             u8,
             Vec<VirtualButton>,
         > = HashMap::new();
+        let mut map_special_buttons: HashMap<String, SpecialButtonKind> = HashMap::new();
+
         let vkb_buttons = vkb_report.get_all_buttons();
 
         // We loop on all b2/b3 buttons from the xml
@@ -148,6 +154,24 @@ impl TryFrom<VkbReport> for JoystickButtonsMapping {
                     //         b2_xml
                     //     )));
                     // }
+
+                    // Store the modifier buttons separately
+                    // cf `get_virtual_button_ids_from_info_or_user_desc` for how it's used
+                    match physical_button.get_kind() {
+                        PhysicalButtonKind::Shift1 => {
+                            map_special_buttons.insert(
+                                physical_button.get_info().to_string(),
+                                SpecialButtonKind::Shift1,
+                            );
+                        }
+                        PhysicalButtonKind::Shift2 => {
+                            map_special_buttons.insert(
+                                physical_button.get_info().to_string(),
+                                SpecialButtonKind::Shift2,
+                            );
+                        }
+                        _ => {}
+                    };
 
                     current_parent = Some(physical_button.clone());
                 }
@@ -185,7 +209,7 @@ impl TryFrom<VkbReport> for JoystickButtonsMapping {
                         .or_insert(vec![current_parent.clone().unwrap().clone()]);
 
                     map_physical_button_id_to_children_virtual_buttons
-                        .entry(current_parent.clone().unwrap().get_id())
+                        .entry(*current_parent.clone().unwrap().get_id())
                         // NOT inserted = the virtual button was already processed!
                         .and_modify(|children| {
                             children.push(virtual_button.clone().try_into().unwrap());
@@ -200,7 +224,7 @@ impl TryFrom<VkbReport> for JoystickButtonsMapping {
 
                     // NOTE: NOT an error; it can just happen; for example right now for the 8 way ministick switch
                     // they entries have the same physical ID and logical ID
-                    if current_parent.clone().unwrap().get_id() == virtual_button_id.clone() {
+                    if current_parent.clone().unwrap().get_id() == virtual_button_id {
                         log::info!(
                             "Virtual button and parent (physical) button have the same ID??? {}",
                             virtual_button_id
@@ -213,6 +237,7 @@ impl TryFrom<VkbReport> for JoystickButtonsMapping {
         Ok(Self {
             map_virtual_button_id_to_parent_physical_buttons,
             map_physical_button_id_to_children_virtual_buttons,
+            map_special_buttons,
         })
     }
 }
@@ -269,7 +294,7 @@ fn extract_text_next_siblings(element: &ElementRef) -> (Option<String>, Option<S
     }
 }
 
-fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, VkbError> {
+fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<PhysicalButton, VkbError> {
     // let lines: Vec<&str> = desc_xml_escaped.split("\r\n").collect();
     // let first_line = lines[0];
 
@@ -434,7 +459,7 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, Vk
 
     // else if remaining_b_node.is_some() && remaining_b_node.unwrap().parent().unwrap().s
 
-    let button = Button::new_physical(
+    let button = PhysicalButton::new(
         button_id_info.id,
         kind,
         button_id_info
@@ -449,7 +474,7 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<Button, Vk
 
 fn parse_b3_button_desc_xml_escaped(
     desc_xml_escaped: &str,
-    parent: &Button,
+    parent_button: &PhysicalButton,
 ) -> Result<VirtualButton, VkbError> {
     // eg with "<b>#5 </b> Joystick button : #11" ->
     // physical_button_id_str: 5
@@ -472,70 +497,12 @@ fn parse_b3_button_desc_xml_escaped(
 
     let button = VirtualButton {
         id: virtual_button_id,
-        kind: match parent.get_kind() {
-            ButtonKind::Physical(parent_button) => match parent_button.get_kind() {
-                PhysicalButtonKind::Momentary { shift } => match shift {
-                    Some(shift_kind) => match shift_kind {
-                        ShiftKind::Shift1 { button_id_shift1 } => {
-                            if &virtual_button_id == button_id_shift1 {
-                                VirtualButtonKind::Momentary(Some(VirtualShiftKind::Shift1))
-                            } else if &virtual_button_id == parent_button.get_id() {
-                                VirtualButtonKind::Momentary(None)
-                            } else {
-                                unimplemented!(
-                                    "Physical parent button DOES NOT match {virtual_button_id}"
-                                );
-                            }
-                        }
-                        ShiftKind::Shift2 { button_id_shift2 } => {
-                            if &virtual_button_id == button_id_shift2 {
-                                VirtualButtonKind::Momentary(Some(VirtualShiftKind::Shift2))
-                            } else if &virtual_button_id == parent_button.get_id() {
-                                VirtualButtonKind::Momentary(None)
-                            } else {
-                                unimplemented!(
-                                    "Physical parent button DOES NOT match {virtual_button_id}"
-                                );
-                            }
-                        }
-                        ShiftKind::Shift12 {
-                            button_id_shift1,
-                            button_id_shift2,
-                        } => {
-                            if &virtual_button_id == button_id_shift1 {
-                                VirtualButtonKind::Momentary(Some(VirtualShiftKind::Shift1))
-                            } else if &virtual_button_id == button_id_shift2 {
-                                VirtualButtonKind::Momentary(Some(VirtualShiftKind::Shift2))
-                            } else if &virtual_button_id == parent_button.get_id() {
-                                VirtualButtonKind::Momentary(None)
-                            } else if &physical_button_id == parent_button.get_id() {
-                                VirtualButtonKind::Momentary(None)
-                            } else if &physical_button_id == button_id_shift1 {
-                                VirtualButtonKind::Momentary(Some(VirtualShiftKind::Shift1))
-                            } else if &physical_button_id == button_id_shift2 {
-                                VirtualButtonKind::Momentary(Some(VirtualShiftKind::Shift2))
-                            } else {
-                                unimplemented!(
-                                    "Physical parent button DOES NOT match {virtual_button_id}"
-                                );
-                            }
-                        }
-                    },
-                    None => VirtualButtonKind::Momentary(None),
-                },
-                PhysicalButtonKind::Encoder => VirtualButtonKind::Momentary(None),
-                PhysicalButtonKind::Tempo(tempo) => match tempo {
-                    TempoKind::_Tempo1 => {
-                        unimplemented!("Physical parent button SHOULD NOT be _Tempo1")
-                    }
-                    TempoKind::Tempo2 {
-                        button_id_short,
-                        button_id_long,
-                    } => {
-                        if &virtual_button_id == button_id_short {
-                            VirtualButtonKind::Tempo(VirtualTempoKind::Short)
-                        } else if &virtual_button_id == button_id_long {
-                            VirtualButtonKind::Tempo(VirtualTempoKind::Long)
+        kind: match parent_button.get_kind() {
+            PhysicalButtonKind::Momentary { shift } => match shift {
+                Some(shift_kind) => match shift_kind {
+                    ShiftKind::Shift1 { button_id_shift1 } => {
+                        if &virtual_button_id == button_id_shift1 {
+                            VirtualButtonKind::Momentary(Some(VirtualShiftKind::Shift1))
                         } else if &virtual_button_id == parent_button.get_id() {
                             VirtualButtonKind::Momentary(None)
                         } else {
@@ -544,21 +511,33 @@ fn parse_b3_button_desc_xml_escaped(
                             );
                         }
                     }
-                    TempoKind::Tempo3 {
-                        button_id_short,
-                        button_id_long,
-                        button_id_double,
-                    } => {
-                        if &virtual_button_id == button_id_short {
-                            VirtualButtonKind::Tempo(VirtualTempoKind::Short)
-                        } else if &virtual_button_id == button_id_long {
-                            VirtualButtonKind::Tempo(VirtualTempoKind::Long)
-                        } else if &virtual_button_id == button_id_double {
-                            VirtualButtonKind::Tempo(VirtualTempoKind::Double)
+                    ShiftKind::Shift2 { button_id_shift2 } => {
+                        if &virtual_button_id == button_id_shift2 {
+                            VirtualButtonKind::Momentary(Some(VirtualShiftKind::Shift2))
                         } else if &virtual_button_id == parent_button.get_id() {
                             VirtualButtonKind::Momentary(None)
-                        } else if &physical_button_id == button_id_short {
-                            VirtualButtonKind::Tempo(VirtualTempoKind::Short)
+                        } else {
+                            unimplemented!(
+                                "Physical parent button DOES NOT match {virtual_button_id}"
+                            );
+                        }
+                    }
+                    ShiftKind::Shift12 {
+                        button_id_shift1,
+                        button_id_shift2,
+                    } => {
+                        if &virtual_button_id == button_id_shift1 {
+                            VirtualButtonKind::Momentary(Some(VirtualShiftKind::Shift1))
+                        } else if &virtual_button_id == button_id_shift2 {
+                            VirtualButtonKind::Momentary(Some(VirtualShiftKind::Shift2))
+                        } else if &virtual_button_id == parent_button.get_id() {
+                            VirtualButtonKind::Momentary(None)
+                        } else if &physical_button_id == parent_button.get_id() {
+                            VirtualButtonKind::Momentary(None)
+                        } else if &physical_button_id == button_id_shift1 {
+                            VirtualButtonKind::Momentary(Some(VirtualShiftKind::Shift1))
+                        } else if &physical_button_id == button_id_shift2 {
+                            VirtualButtonKind::Momentary(Some(VirtualShiftKind::Shift2))
                         } else {
                             unimplemented!(
                                 "Physical parent button DOES NOT match {virtual_button_id}"
@@ -566,24 +545,61 @@ fn parse_b3_button_desc_xml_escaped(
                         }
                     }
                 },
-                PhysicalButtonKind::Shift1 => {
-                    unimplemented!("Physical parent button SHOULD NOT be Shift1")
+                None => VirtualButtonKind::Momentary(None),
+            },
+            PhysicalButtonKind::Encoder => VirtualButtonKind::Momentary(None),
+            PhysicalButtonKind::Tempo(tempo) => match tempo {
+                TempoKind::_Tempo1 => {
+                    unimplemented!("Physical parent button SHOULD NOT be _Tempo1")
                 }
-                PhysicalButtonKind::Shift2 => {
-                    unimplemented!("Physical parent button SHOULD NOT be Shift2")
+                TempoKind::Tempo2 {
+                    button_id_short,
+                    button_id_long,
+                } => {
+                    if &virtual_button_id == button_id_short {
+                        VirtualButtonKind::Tempo(VirtualTempoKind::Short)
+                    } else if &virtual_button_id == button_id_long {
+                        VirtualButtonKind::Tempo(VirtualTempoKind::Long)
+                    } else if &virtual_button_id == parent_button.get_id() {
+                        VirtualButtonKind::Momentary(None)
+                    } else {
+                        unimplemented!("Physical parent button DOES NOT match {virtual_button_id}");
+                    }
                 }
-                PhysicalButtonKind::Pov { direction: _ } => {
-                    unimplemented!("Physical parent button SHOULD NOT be Pov")
-                }
-                PhysicalButtonKind::Undefined => {
-                    unimplemented!("Physical parent button SHOULD NOT be Undefined")
-                }
-                PhysicalButtonKind::MicrostickModeSwitch => {
-                    unimplemented!("Physical parent button SHOULD NOT be MicrostickModeSwitch")
+                TempoKind::Tempo3 {
+                    button_id_short,
+                    button_id_long,
+                    button_id_double,
+                } => {
+                    if &virtual_button_id == button_id_short {
+                        VirtualButtonKind::Tempo(VirtualTempoKind::Short)
+                    } else if &virtual_button_id == button_id_long {
+                        VirtualButtonKind::Tempo(VirtualTempoKind::Long)
+                    } else if &virtual_button_id == button_id_double {
+                        VirtualButtonKind::Tempo(VirtualTempoKind::Double)
+                    } else if &virtual_button_id == parent_button.get_id() {
+                        VirtualButtonKind::Momentary(None)
+                    } else if &physical_button_id == button_id_short {
+                        VirtualButtonKind::Tempo(VirtualTempoKind::Short)
+                    } else {
+                        unimplemented!("Physical parent button DOES NOT match {virtual_button_id}");
+                    }
                 }
             },
-            ButtonKind::Virtual(_) => {
-                panic!("parse_b3_button_desc_xml_escaped: parent MUST be a Physical button!")
+            PhysicalButtonKind::Shift1 => {
+                unimplemented!("Physical parent button SHOULD NOT be Shift1")
+            }
+            PhysicalButtonKind::Shift2 => {
+                unimplemented!("Physical parent button SHOULD NOT be Shift2")
+            }
+            PhysicalButtonKind::Pov { direction: _ } => {
+                unimplemented!("Physical parent button SHOULD NOT be Pov")
+            }
+            PhysicalButtonKind::Undefined => {
+                unimplemented!("Physical parent button SHOULD NOT be Undefined")
+            }
+            PhysicalButtonKind::MicrostickModeSwitch => {
+                unimplemented!("Physical parent button SHOULD NOT be MicrostickModeSwitch")
             }
         },
     };
