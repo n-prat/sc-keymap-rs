@@ -1,31 +1,13 @@
-use std::{num::ParseIntError, path::PathBuf};
+use std::path::PathBuf;
 
-use thiserror::Error;
+use crate::Error;
 
 use self::vkb_button::JoystickButtonsMapping;
-use crate::button::{SpecialButtonKind, VirtualButtonOrSpecial};
 
-pub mod vkb_button;
+pub(crate) mod vkb_button;
 mod vkb_xml;
 
-
-#[derive(Error, Debug)]
-pub enum VkbError {
-    #[error("the data for key `{0}` is not available")]
-    Redaction(String),
-    #[error("invalid header (expected {expected:?}, found {found:?})")]
-    InvalidHeader { expected: String, found: String },
-    #[error("unknown xml error")]
-    Unknown,
-    #[error("the xml desc `{0}` is not handled")]
-    UnexpectedXmlDesc(String),
-    #[error("could not parse to integer `{err}`")]
-    ParseIntError { err: ParseIntError },
-    #[error("could not find info_or_user_desc : `{info_or_user_desc}`")]
-    ButtonNotFound { info_or_user_desc: String },
-}
-
-fn parse_report(xml_path: PathBuf) -> Result<vkb_xml::VkbReport, VkbError> {
+fn parse_report(xml_path: PathBuf) -> Result<vkb_xml::VkbReport, Error> {
     let vkb_report = vkb_xml::VkbReport::new(xml_path)?;
 
     Ok(vkb_report)
@@ -34,38 +16,42 @@ fn parse_report(xml_path: PathBuf) -> Result<vkb_xml::VkbReport, VkbError> {
 fn check_report(
     vkb_report: vkb_xml::VkbReport,
     vkb_user_provided_data: Option<csv::Reader<std::fs::File>>,
-) -> vkb_button::JoystickButtonsMapping {
-    let mut vkb_buttons = vkb_button::JoystickButtonsMapping::try_from(vkb_report).unwrap();
+) -> Result<vkb_button::JoystickButtonsMapping, Error> {
+    let mut vkb_buttons = vkb_button::JoystickButtonsMapping::try_from(vkb_report)?;
 
-    match vkb_user_provided_data {
-        Some(vkb_user_provided_data) => {
-            vkb_buttons.inject_user_provided_desc(vkb_user_provided_data)
-        }
-        None => {}
+    if let Some(vkb_user_provided_data) = vkb_user_provided_data {
+        vkb_buttons.inject_user_provided_desc(vkb_user_provided_data)?;
     }
 
     vkb_buttons.log_free_virtual_buttons();
 
-    vkb_buttons
+    Ok(vkb_buttons)
 }
 
 /// Parse and process both the L and R sticks
+///
+/// # Errors
+/// - `Error::Csv` if the csv path could not be read
+/// - if `stick_fp3_report_path` could not be parsed by `parse_report`
+/// - if `stick_fp3_report_path` failed at `check_report`
+///   NOTE: for now we are only logging the errors/duplicated buttons etc but that MAY change
+///
 pub fn parse_and_check_vkb_both_sticks(
     stick_fp3_report_path: PathBuf,
-    vkb_user_provided_data_path: Option<PathBuf>,
-) -> Result<JoystickButtonsMapping, VkbError> {
+    vkb_user_provided_data_path: &Option<PathBuf>,
+) -> Result<JoystickButtonsMapping, Error> {
     let vkb_user_provided_data = match vkb_user_provided_data_path {
         Some(ref vkb_user_provided_data_path) => {
-            let rdr = csv::Reader::from_path(vkb_user_provided_data_path).unwrap();
+            let rdr = csv::Reader::from_path(vkb_user_provided_data_path).map_err(Error::Csv)?;
             Some(rdr)
         }
         None => None,
     };
 
-    let vkb_report = parse_report(stick_fp3_report_path).unwrap();
+    let vkb_report = parse_report(stick_fp3_report_path)?;
     log::info!("vkb_report : {:#?}", vkb_report);
 
-    let vkb_mappings = check_report(vkb_report, vkb_user_provided_data);
+    let vkb_mappings = check_report(vkb_report, vkb_user_provided_data)?;
     log::info!("vkb_buttons : {:#?}", vkb_mappings);
 
     Ok(vkb_mappings)

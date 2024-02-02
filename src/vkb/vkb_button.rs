@@ -1,5 +1,5 @@
 //! This mod is AFTER parsing the XML.
-//! It is doing some "light parsing": ie reading the appropriate fields in VkbReport struct
+//! It is doing some "light parsing": ie reading the appropriate fields in `VkbReport` struct
 //! and building various "Button" instances from these.
 //!
 
@@ -11,7 +11,6 @@ use scraper::Selector;
 
 use super::vkb_xml::VkbReport;
 use super::vkb_xml::VkbXmlButton;
-use super::VkbError;
 use crate::button::PhysicalButton;
 use crate::button::SpecialButtonKind;
 use crate::button::VirtualButton;
@@ -20,10 +19,11 @@ use crate::button::VirtualButtonOrSpecial;
 use crate::button::VirtualShiftKind;
 use crate::button::VirtualTempoKind;
 use crate::button::{PhysicalButtonKind, ShiftKind, TempoKind};
+use crate::Error;
 
 /// Custom `TryFrom<VkbXmlButton>` allowing us to link a parent to a Virtual button
 // impl Button {
-//     fn try_from(xml_button: VkbXmlButton, parent: &Option<Button>) -> Result<Self, VkbError> {
+//     fn try_from(xml_button: VkbXmlButton, parent: &Option<Button>) -> Result<Self, Error> {
 //         match xml_button {
 //             VkbXmlButton::B2(b2) => Button::try_from(b2, parent),
 //             VkbXmlButton::B3(b3) => Button::try_from(b3, parent),
@@ -45,6 +45,7 @@ use crate::button::{PhysicalButtonKind, ShiftKind, TempoKind};
 /// This is the final mapping, correspondonding to the XML!
 ///
 /// It does NOT contain any game keybind!
+#[allow(clippy::struct_field_names)]
 #[derive(PartialEq, Debug, Clone)]
 pub struct JoystickButtonsMapping {
     /// This set is here to help detect duplicated virtual buttons
@@ -67,7 +68,7 @@ impl JoystickButtonsMapping {
     pub(crate) fn inject_user_provided_desc(
         &mut self,
         vkb_user_provided_data: csv::Reader<std::fs::File>,
-    ) {
+    ) -> Result<(), Error> {
         let csv_records: Vec<_> = vkb_user_provided_data.into_records().collect();
 
         // for button_with_desc in &mut self.physical_buttons_with_desc {
@@ -88,17 +89,19 @@ impl JoystickButtonsMapping {
             for physical_button_parent in physical_buttons_parents.iter_mut() {
                 let user_desc = csv_records[*physical_button_parent.get_id() as usize - 1]
                     .as_ref()
-                    .expect("MISSING CSV RECORD")
+                    .map_err(|_| Error::OtherXmlParsingError("MISSING CSV RECORD".to_string()))?
                     .get(1)
-                    .expect("MISSING CSV COLUMN")
+                    .ok_or_else(|| Error::OtherXmlParsingError("MISSING CSV COLUMN".to_string()))?
                     .to_string();
                 physical_button_parent.set_user_desc(&user_desc);
             }
         }
+
+        Ok(())
     }
 
     /// CHECK/LOG the "free" Virtual buttons
-    /// VkbDevCfg "auto" should probably work but it ends up duplicating virtual buttons
+    /// `VkbDevCfg` "auto" should probably work but it ends up duplicating virtual buttons
     /// This is REALLY useful when trying to add SHIFT1/2/TEMPO to an existing button without messing up existing keybinds
     pub(crate) fn log_free_virtual_buttons(&self) -> Vec<u8> {
         const NB_VIRTUAL_BUTTONS: u8 = 128;
@@ -119,35 +122,33 @@ impl JoystickButtonsMapping {
         unused_virtual_buttons
     }
 
-    /// Let's say info_or_user_desc = "A1 8-way ministick N" or "(A2)"
+    /// Let's say `info_or_user_desc` = "A1 8-way ministick N" or "(A2)"
     /// We want to return the corresponding VIRTUAL BUTTON IDS (plural!)
     /// That way when a loop in the game binding, we can easily get the corresponding label from it eg "deploy landing gear" etc
     ///
     /// We are looking for a VIRTUAL BUTTON (ID) whose PARENT (PHYSICAL) BUTTON
-    /// has "info" == `info_or_user_desc` or "user_desc" == `info_or_user_desc`
+    /// has "info" == `info_or_user_desc` or "`user_desc`" == `info_or_user_desc`
     ///
     // TODO is this OK? should it return a Vec? Add more tests with STD+SHIFT1+SHIFT2 from real bininds
     // and check
-    pub fn get_virtual_button_ids_from_info_or_user_desc(
+    pub(crate) fn get_virtual_button_ids_from_info_or_user_desc(
         &self,
         info_or_user_desc: &str,
-    ) -> Result<Vec<VirtualButtonOrSpecial>, VkbError> {
+    ) -> Result<Vec<VirtualButtonOrSpecial>, Error> {
         // SHORTCUT to handle SHIFT1/SHIT2
         // They are (usually) NOT bound to ingame actions because they are (usually) ONLY a modifier
         // so the look up in `map_virtual_button_id_to_parent_physical_buttons` will NOT return anything
         // TODO this probably is NOT handling when the button is BOTH a modifier AND a virtual button
-        match self.map_special_buttons.get(info_or_user_desc) {
-            Some(special_kind) => {
-                return Ok(vec![VirtualButtonOrSpecial::Special(special_kind.clone())])
-            }
-            None => {}
+        if let Some(special_kind) = self.map_special_buttons.get(info_or_user_desc) {
+            return Ok(vec![VirtualButtonOrSpecial::Special(special_kind.clone())]);
         };
 
         let mut found_physical_button_id: Option<u8> = None;
 
         // First: loop for the target PHYSICAL button; cf docstring
-        for (virtual_button_id, parent_physical_buttons) in
-            self.map_virtual_button_id_to_parent_physical_buttons.iter()
+        for parent_physical_buttons in self
+            .map_virtual_button_id_to_parent_physical_buttons
+            .values()
         {
             for parent_physical_button in parent_physical_buttons {
                 if info_or_user_desc == parent_physical_button.get_info()
@@ -163,15 +164,21 @@ impl JoystickButtonsMapping {
         match found_physical_button_id {
             Some(found_physical_button_id) => {
                 let buttons = self
-                .map_physical_button_id_to_children_virtual_buttons
-                .get(&found_physical_button_id).expect("physical button ID not found in map_physical_button_id_to_children_virtual_button_ids!").clone();
+                    .map_physical_button_id_to_children_virtual_buttons
+                    .get(&found_physical_button_id)
+                    .ok_or_else(|| {
+                        Error::OtherXmlParsingError(format!(
+                            "could not find {found_physical_button_id} in map"
+                        ))
+                    })?
+                    .clone();
 
                 Ok(buttons
                     .into_iter()
-                    .map(|button| VirtualButtonOrSpecial::Virtual(button))
+                    .map(VirtualButtonOrSpecial::Virtual)
                     .collect())
             }
-            None => Err(VkbError::ButtonNotFound {
+            None => Err(Error::ButtonNotFound {
                 info_or_user_desc: info_or_user_desc.to_string(),
             }),
         }
@@ -179,7 +186,7 @@ impl JoystickButtonsMapping {
 }
 
 impl TryFrom<VkbReport> for JoystickButtonsMapping {
-    type Error = VkbError;
+    type Error = Error;
 
     // TODO(add-CHECK) this should be 2 maps; one parent->children and one child->parent; that way we can display proper
     // warnings to find where the duplicates originate
@@ -199,7 +206,7 @@ impl TryFrom<VkbReport> for JoystickButtonsMapping {
         // - b2 are the physical buttons, they are the PARENT
         // - b3 are virtual/logical ones: these are the ones bound in-game
         let mut current_parent = None;
-        for vkb_button in vkb_buttons {
+        for vkb_button in &vkb_buttons {
             match vkb_button {
                 VkbXmlButton::B2(b2_xml) => {
                     // Try to build a Button(Physical) from a B2 xml field
@@ -208,7 +215,7 @@ impl TryFrom<VkbReport> for JoystickButtonsMapping {
 
                     // TODO(re-add CHECK): the "m5" field SHOULD match the parsed button ID
                     // if b2_xml.m5.physical_button_id.parse::<u8>().unwrap() != button.get_id() {
-                    //     return Err(VkbError::UnexpectedXmlDesc(format!(
+                    //     return Err(Error::UnexpectedXmlDesc(format!(
                     //         "m5 field value does not match: {:?}",
                     //         b2_xml
                     //     )));
@@ -235,18 +242,21 @@ impl TryFrom<VkbReport> for JoystickButtonsMapping {
                     current_parent = Some(physical_button.clone());
                 }
                 VkbXmlButton::B3(b3_xml) => {
+                    // CHECK when processing a Virtual button, we MUST have a valid parent
+                    let current_parent = current_parent.clone().ok_or_else(|| {
+                        Error::OtherXmlParsingError("parent is not yet set".to_string())
+                    })?;
+
                     // Try to build a Button(Virtual) from a B3 xml field
                     let virtual_button = parse_b3_button_desc_xml_escaped(
                         &b3_xml.m9.desc_xml_escaped,
-                        &current_parent
-                            .clone()
-                            .expect("trying to build a Virtual button without a valid parent!"),
+                        &current_parent,
                     )?;
 
                     // CHECK: the "m8" field SHOULD match the parsed button ID
                     // NO! cf `test_parse_b3_button_desc_xml_escaped`
                     // if b3_xml.m8.virtual_button_id.parse::<u8>().unwrap() != button.get_id() {
-                    //     return Err(VkbError::UnexpectedXmlDesc(format!(
+                    //     return Err(Error::UnexpectedXmlDesc(format!(
                     //         "m8 field value does not match: {:?}",
                     //         b3_xml
                     //     )));
@@ -258,20 +268,20 @@ impl TryFrom<VkbReport> for JoystickButtonsMapping {
                         .entry(*virtual_button_id)
                         // NOT inserted = the virtual button was already processed!
                         .and_modify(|parents| {
-                            parents.push(current_parent.clone().unwrap().clone());
+                            parents.push(current_parent.clone());
                             log::warn!(
                                 "virtual button duplicated : {} from physical : {parents:?}",
                                 virtual_button_id
                             );
                         })
                         // inserted = nothing to do
-                        .or_insert(vec![current_parent.clone().unwrap().clone()]);
+                        .or_insert(vec![current_parent.clone()]);
 
                     map_physical_button_id_to_children_virtual_buttons
-                        .entry(*current_parent.clone().unwrap().get_id())
+                        .entry(*current_parent.get_id())
                         // NOT inserted = the virtual button was already processed!
                         .and_modify(|children| {
-                            children.push(virtual_button.clone().try_into().unwrap());
+                            children.push(virtual_button.clone());
                             // is this a warning???
                             log::info!(
                                 "physical button duplicated : {} from logical : {children:?}",
@@ -279,11 +289,11 @@ impl TryFrom<VkbReport> for JoystickButtonsMapping {
                             );
                         })
                         // inserted = nothing to do
-                        .or_insert(vec![virtual_button.clone().try_into().unwrap()]);
+                        .or_insert(vec![virtual_button.clone()]);
 
                     // NOTE: NOT an error; it can just happen; for example right now for the 8 way ministick switch
                     // they entries have the same physical ID and logical ID
-                    if current_parent.clone().unwrap().get_id() == virtual_button_id {
+                    if current_parent.get_id() == virtual_button_id {
                         log::info!(
                             "Virtual button and parent (physical) button have the same ID??? {}",
                             virtual_button_id
@@ -306,14 +316,16 @@ impl TryFrom<VkbReport> for JoystickButtonsMapping {
 /// Return:
 /// - ALWAYS a "Button ID" eg 1,2,etc
 /// - if applicable: "additional into" eg "(E1)", "Encoder 2/4", etc
-fn extract_button_id_from_inner_html(inner_html_desc: &str) -> ButtonIdAndInfo {
-    assert!(inner_html_desc.starts_with("#"));
-    let (button_id_str, info_str) = inner_html_desc[1..].split_once(" ").unwrap();
+fn extract_button_id_from_inner_html(inner_html_desc: &str) -> Result<ButtonIdAndInfo, Error> {
+    assert!(inner_html_desc.starts_with('#'));
+    let (button_id_str, info_str) = inner_html_desc[1..].split_once(' ').ok_or_else(|| {
+        Error::OtherXmlParsingError(format!("failed to extract button id : {inner_html_desc}"))
+    })?;
 
-    ButtonIdAndInfo {
-        id: button_id_str.parse().unwrap(),
+    Ok(ButtonIdAndInfo {
+        id: button_id_str.parse().map_err(Error::ParseIntError)?,
         info: Some(info_str.trim().to_string()),
-    }
+    })
 }
 
 #[derive(Debug, PartialEq)]
@@ -329,8 +341,8 @@ struct ButtonIdAndInfo {
 /// - or 2 strings if there are two useful lines
 /// - or none at all
 ///
-/// NOTE: the given "element" SHOULD be the first element in tree order b/c we only iterate forward("next_sibling")
-fn extract_text_next_siblings(element: &ElementRef) -> (Option<String>, Option<String>) {
+/// NOTE: the given "element" SHOULD be the first element in tree order b/c we only iterate `forward("next_sibling`")
+fn extract_text_next_siblings(element: &ElementRef<'_>) -> (Option<String>, Option<String>) {
     let mut text_siblings = Vec::new();
 
     // Iterate over the next siblings
@@ -339,7 +351,7 @@ fn extract_text_next_siblings(element: &ElementRef) -> (Option<String>, Option<S
         // if let NodeRef::Text(text) = sibling.value() {
         if let Some(text) = sibling.value().as_text() {
             let text = text.trim();
-            let text = text.replacen("\n", "", 1);
+            let text = text.replacen('\n', "", 1);
             text_siblings.push(text);
         }
         current = sibling.next_sibling();
@@ -353,7 +365,8 @@ fn extract_text_next_siblings(element: &ElementRef) -> (Option<String>, Option<S
     }
 }
 
-fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<PhysicalButton, VkbError> {
+#[allow(clippy::too_many_lines)]
+fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<PhysicalButton, Error> {
     // let lines: Vec<&str> = desc_xml_escaped.split("\r\n").collect();
     // let first_line = lines[0];
 
@@ -366,7 +379,8 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<PhysicalBu
 
     // the selected inner_html should contain something like:
     // "#1 (E1) ", "#2  - Encoder 2/4", etc
-    let b_selector = Selector::parse("b").unwrap();
+    let b_selector = Selector::parse("b")
+        .map_err(|_| Error::OtherXmlParsingError("missing <b> selector".to_string()))?;
     let b_nodes: Vec<_> = fragment.select(&b_selector).collect();
 
     // log::debug!("b_nodes [{}] : {:?}", b_nodes.len(), b_nodes);
@@ -375,7 +389,7 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<PhysicalBu
     // }
 
     // Only extract the ID from the FIRST "b" node
-    let button_id_info = extract_button_id_from_inner_html(&b_nodes[0].inner_html());
+    let button_id_info = extract_button_id_from_inner_html(&b_nodes[0].inner_html())?;
     // IF there are more "b" nodes, they contains only additional info like:
     // "<b>- Button with momentary action</b>"
     // "<b>TEMPO </b>"
@@ -396,32 +410,36 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<PhysicalBu
     // - "b" node, NO text:
     //      "<b>#39 </b><b> No defined function</b>"
     //      "<b>#66 </b><b>- Button with momentary action</b>"
-    let remaining_b_node = match remaining_b_node {
-        Some(remaining_b_node) => remaining_b_node,
-        None => unimplemented!("SHOULD NOT be here, this is only for b3 field???"),
+    let Some(remaining_b_node) = remaining_b_node else {
+        unimplemented!("SHOULD NOT be here, this is only for b3 field???")
     };
 
     let remaining_b_node_inner_html = remaining_b_node.inner_html();
     let kind = if remaining_b_node_inner_html.contains("TEMPO") {
-        let text = match texts {
-            (Some(text), None) => text,
-            _ => unimplemented!("TEMPO: SHOULD NOT be here!"),
+        let (Some(text), None) = texts else {
+            unimplemented!("TEMPO: SHOULD NOT be here!")
         };
         if text.contains("Virtual button Short #")
             && text.contains("Virtual button Long #")
             && !text.contains("Virtual button Double Short #")
         {
             let short_id = text
-                .split("Virtual button Short #")
+                .split("Virtual button Short/Long #")
                 .last()
-                .unwrap()
+                .ok_or_else(|| {
+                    Error::OtherXmlParsingError("Virtual button Short/Long err1".to_string())
+                })?
                 .split("Virtual button Long #")
                 .next()
-                .unwrap();
-            let long_id = text.split("Virtual button Long #").last().unwrap();
+                .ok_or_else(|| {
+                    Error::OtherXmlParsingError("Virtual button Short/Long err2".to_string())
+                })?;
+            let long_id = text.split("Virtual button Long #").last().ok_or_else(|| {
+                Error::OtherXmlParsingError("Virtual button Short/Long err3".to_string())
+            })?;
             PhysicalButtonKind::Tempo(TempoKind::Tempo2 {
-                button_id_short: short_id.parse().unwrap(),
-                button_id_long: long_id.parse().unwrap(),
+                button_id_short: short_id.parse().map_err(Error::ParseIntError)?,
+                button_id_long: long_id.parse().map_err(Error::ParseIntError)?,
             })
         } else if text.contains("Virtual button Short #")
             && text.contains("Virtual button Long #")
@@ -430,23 +448,36 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<PhysicalBu
             let short_id = text
                 .split("Virtual button Short #")
                 .last()
-                .unwrap()
+                .ok_or_else(|| {
+                    Error::OtherXmlParsingError("Virtual button Short/Long/Double err1".to_string())
+                })?
                 .split("Virtual button Long #")
                 .next()
-                .unwrap();
+                .ok_or_else(|| {
+                    Error::OtherXmlParsingError("Virtual button Short/Long/Double err2".to_string())
+                })?;
             let long_id = text
                 .split("Virtual button Long #")
                 .last()
-                .unwrap()
+                .ok_or_else(|| {
+                    Error::OtherXmlParsingError("Virtual button Short/Long/Double err3".to_string())
+                })?
                 .split("Virtual button Double Short #")
                 .next()
-                .unwrap()
-                .replace("\n", "");
-            let double_id = text.split("Virtual button Double Short #").last().unwrap();
+                .ok_or_else(|| {
+                    Error::OtherXmlParsingError("Virtual button Short/Long/Double err4".to_string())
+                })?
+                .replace('\n', "");
+            let double_id = text
+                .split("Virtual button Double Short #")
+                .last()
+                .ok_or_else(|| {
+                    Error::OtherXmlParsingError("Virtual button Short/Long/Double err5".to_string())
+                })?;
             PhysicalButtonKind::Tempo(TempoKind::Tempo3 {
-                button_id_short: short_id.parse().unwrap(),
-                button_id_long: long_id.parse().unwrap(),
-                button_id_double: double_id.parse().unwrap(),
+                button_id_short: short_id.parse().map_err(Error::ParseIntError)?,
+                button_id_long: long_id.parse().map_err(Error::ParseIntError)?,
+                button_id_double: double_id.parse().map_err(Error::ParseIntError)?,
             })
         } else {
             todo!()
@@ -466,33 +497,62 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<PhysicalBu
                     let shift1_id = text
                         .split("Virtual button with SHIFT1 = ")
                         .last()
-                        .unwrap()
+                        .ok_or_else(|| {
+                            Error::OtherXmlParsingError(
+                                "Button with momentary action err1".to_string(),
+                            )
+                        })?
                         .split("Virtual button with SHIFT2 = ")
                         .next()
-                        .unwrap();
-                    let shift2_id = text.split("Virtual button with SHIFT2 = ").last().unwrap();
+                        .ok_or_else(|| {
+                            Error::OtherXmlParsingError(
+                                "Button with momentary action err2".to_string(),
+                            )
+                        })?;
+                    let shift2_id = text
+                        .split("Virtual button with SHIFT2 = ")
+                        .last()
+                        .ok_or_else(|| {
+                            Error::OtherXmlParsingError(
+                                "Button with momentary action err3".to_string(),
+                            )
+                        })?;
                     PhysicalButtonKind::Momentary {
                         shift: Some(ShiftKind::Shift12 {
-                            button_id_shift1: shift1_id.parse().unwrap(),
-                            button_id_shift2: shift2_id.parse().unwrap(),
+                            button_id_shift1: shift1_id.parse().map_err(Error::ParseIntError)?,
+                            button_id_shift2: shift2_id.parse().map_err(Error::ParseIntError)?,
                         }),
                     }
                 } else if text.contains("Virtual button with SHIFT1 =")
                     && !text.contains("Virtual button with SHIFT2 =")
                 {
-                    let shift1_id = text.split("Virtual button with SHIFT1 = ").last().unwrap();
+                    let shift1_id = text
+                        .split("Virtual button with SHIFT1 = ")
+                        .last()
+                        .ok_or_else(|| {
+                            Error::OtherXmlParsingError(
+                                "Button with momentary action err6".to_string(),
+                            )
+                        })?;
                     PhysicalButtonKind::Momentary {
                         shift: Some(ShiftKind::Shift1 {
-                            button_id_shift1: shift1_id.parse().unwrap(),
+                            button_id_shift1: shift1_id.parse().map_err(Error::ParseIntError)?,
                         }),
                     }
                 } else if !text.contains("Virtual button with SHIFT1 =")
                     && text.contains("Virtual button with SHIFT2 =")
                 {
-                    let shift1_id = text.split("Virtual button with SHIFT2 = ").last().unwrap();
+                    let shift1_id = text
+                        .split("Virtual button with SHIFT2 = ")
+                        .last()
+                        .ok_or_else(|| {
+                            Error::OtherXmlParsingError(
+                                "Button with momentary action err8".to_string(),
+                            )
+                        })?;
                     PhysicalButtonKind::Momentary {
                         shift: Some(ShiftKind::Shift2 {
-                            button_id_shift2: shift1_id.parse().unwrap(),
+                            button_id_shift2: shift1_id.parse().map_err(Error::ParseIntError)?,
                         }),
                     }
                 } else {
@@ -506,7 +566,19 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<PhysicalBu
     } else if remaining_b_node_inner_html.contains(" SHIFT2 alternate action") {
         PhysicalButtonKind::Shift2
     } else if remaining_b_node_inner_html.contains("Point of view Switch") {
-        let direction = texts.1.unwrap().split(" ").last().unwrap().to_string();
+        let direction = texts
+            .1
+            .ok_or_else(|| {
+                Error::OtherXmlParsingError(
+                    "Point of view Switch: texts tuple.1 is empty".to_string(),
+                )
+            })?
+            .split(' ')
+            .last()
+            .ok_or_else(|| {
+                Error::OtherXmlParsingError("could not parse Point of view Switch".to_string())
+            })?
+            .to_string();
         PhysicalButtonKind::Pov { direction }
     } else if remaining_b_node_inner_html.contains("No defined function") {
         PhysicalButtonKind::Undefined
@@ -523,18 +595,19 @@ fn parse_b2_button_desc_xml_escaped(desc_xml_escaped: &str) -> Result<PhysicalBu
         kind,
         button_id_info
             .info
-            .expect(format!("MISSING INFO FOR BUTTON {}", button_id_info.id).as_str()),
+            .ok_or_else(|| Error::MissingXmlInfo(button_id_info.id))?,
         remaining_b_node_inner_html,
-        "".to_string(),
+        String::new(),
     );
 
     Ok(button)
 }
 
+#[allow(clippy::too_many_lines)]
 fn parse_b3_button_desc_xml_escaped(
     desc_xml_escaped: &str,
     parent_button: &PhysicalButton,
-) -> Result<VirtualButton, VkbError> {
+) -> Result<VirtualButton, Error> {
     // eg with "<b>#5 </b> Joystick button : #11" ->
     // physical_button_id_str: 5
     // virtual_button_id_str: 11
@@ -549,10 +622,10 @@ fn parse_b3_button_desc_xml_escaped(
 
     let physical_button_id: u8 = physical_button_id_str
         .parse()
-        .map_err(|err| VkbError::ParseIntError { err })?;
+        .map_err(Error::ParseIntError)?;
     let virtual_button_id: u8 = virtual_button_id_str
         .parse()
-        .map_err(|err| VkbError::ParseIntError { err })?;
+        .map_err(Error::ParseIntError)?;
 
     let button = VirtualButton {
         id: virtual_button_id,
@@ -589,9 +662,9 @@ fn parse_b3_button_desc_xml_escaped(
                             VirtualButtonKind::Momentary(Some(VirtualShiftKind::Shift1))
                         } else if &virtual_button_id == button_id_shift2 {
                             VirtualButtonKind::Momentary(Some(VirtualShiftKind::Shift2))
-                        } else if &virtual_button_id == parent_button.get_id() {
-                            VirtualButtonKind::Momentary(None)
-                        } else if &physical_button_id == parent_button.get_id() {
+                        } else if &virtual_button_id == parent_button.get_id()
+                            || &physical_button_id == parent_button.get_id()
+                        {
                             VirtualButtonKind::Momentary(None)
                         } else if &physical_button_id == button_id_shift1 {
                             VirtualButtonKind::Momentary(Some(VirtualShiftKind::Shift1))

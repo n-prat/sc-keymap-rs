@@ -2,14 +2,6 @@
 //! They are usually obtained after parsing a joystick configuration directly; NOT from exported game mapping.
 //!
 
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum ButtonError {
-    #[error("could not find info_or_user_desc : `{info_or_user_desc}`")]
-    ButtonNotFound { info_or_user_desc: String },
-}
-
 #[derive(PartialEq, Clone)]
 pub(crate) enum TempoKind {
     /// Short+Long press
@@ -30,21 +22,20 @@ pub(crate) enum TempoKind {
 }
 
 impl core::fmt::Debug for TempoKind {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             TempoKind::_Tempo1 => write!(f, "Tempo1[]"),
             TempoKind::Tempo2 {
                 button_id_short,
                 button_id_long,
-            } => write!(f, "Tempo2[{}/{}]", button_id_short, button_id_long),
+            } => write!(f, "Tempo2[{button_id_short}/{button_id_long}]"),
             TempoKind::Tempo3 {
                 button_id_short,
                 button_id_long,
                 button_id_double,
             } => write!(
                 f,
-                "Tempo3[{}/{}/{}]",
-                button_id_short, button_id_long, button_id_double
+                "Tempo3[{button_id_short}/{button_id_long}/{button_id_double}]"
             ),
         }
     }
@@ -65,16 +56,16 @@ pub(crate) enum ShiftKind {
 }
 
 impl core::fmt::Debug for ShiftKind {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            ShiftKind::Shift1 { button_id_shift1 } => write!(f, "Shift1[{}]", button_id_shift1),
+            ShiftKind::Shift1 { button_id_shift1 } => write!(f, "Shift1[{button_id_shift1}]"),
             ShiftKind::Shift2 { button_id_shift2 } => {
-                write!(f, "Shift2[{}]", button_id_shift2)
+                write!(f, "Shift2[{button_id_shift2}]")
             }
             ShiftKind::Shift12 {
                 button_id_shift1,
                 button_id_shift2,
-            } => write!(f, "Shift12[{}/{}]", button_id_shift1, button_id_shift2),
+            } => write!(f, "Shift12[{button_id_shift1}/{button_id_shift2}]"),
         }
     }
 }
@@ -160,7 +151,7 @@ pub(crate) enum VirtualButtonOrSpecial {
 }
 
 impl core::fmt::Debug for VirtualButton {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match &self.kind {
             VirtualButtonKind::Momentary(shift) => {
                 write!(f, "VirtualButton [{} ({:?})]", self.id, shift)
@@ -220,6 +211,6 @@ impl PhysicalButton {
     }
 
     pub(super) fn set_user_desc(&mut self, new_user_desc: &str) {
-        self.user_desc = new_user_desc.to_string()
+        self.user_desc = new_user_desc.to_string();
     }
 }

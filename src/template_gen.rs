@@ -6,34 +6,70 @@ use std::path::PathBuf;
 
 use crate::sc::parse_keybind_xml;
 use crate::vkb::vkb_button::JoystickButtonsMapping;
+use crate::Error;
 
-pub fn generate_sc_template(
-    game_buttons_mapping: parse_keybind_xml::GameButtonsMapping,
-    joysticks_mappings: JoystickButtonsMapping,
-    json_template_params_path: PathBuf,
-) {
-    ////////////////////////////////////////////////////////////////////////////
-    // Parse the "vkb_template_params.json"
-    // and check eveything is OK: paths, etc
-    let json_params: TemplateJsonParamaters = serde_json::from_reader(std::io::BufReader::new(
-        std::fs::File::open(json_template_params_path).unwrap(),
-    ))
-    .unwrap();
-    println!("json_params : {json_params:?}");
-
-    ////////////////////////////////////////////////////////////////////////////
-    let image_full_front =
-        image::open(json_params.path_to_full_png).expect("Failed to open image1");
-
-    let image_back = image::open(json_params.path_to_side_png).expect("Failed to open image2");
-
-    // Create a new RgbaImage with dimensions based on the larger of the two images
+/// Combine a game keybinds mapping and a physical joystick configuration and generates a .png
+///
+/// # Errors
+/// - the various files could not be read
+/// - the positions/sizes/etc in `vkb_template_params.json` are not correct
+/// - etc
+///
+#[allow(clippy::too_many_lines)]
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap
+)]
+pub fn generate_template(
+    game_buttons_mapping: &parse_keybind_xml::GameButtonsMapping,
+    joysticks_mappings: &JoystickButtonsMapping,
+    json_template_params_path: &PathBuf,
+) -> Result<(), Error> {
     const WIDTH: u32 = 4000;
     const HEIGHT: u32 = 2000;
     const FULL_PNG_RESIZED_WIDTH: i32 = 1800;
     const FULL_PNG_RESIZED_HEIGHT: i32 = 1800;
     const SIDE_PNG_RESIZED_WIDTH: i32 = 1200;
     const SIDE_PNG_RESIZED_HEIGHT: i32 = 1200;
+    const BOX_LENGTH: i32 = 500;
+    const BOX_HEIGHT: i32 = 110;
+    const PADDING_H: i32 = 10;
+    const PADDING_V: i32 = 10;
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Parse the "vkb_template_params.json"
+    // and check eveything is OK: paths, etc
+    let json_params: TemplateJsonParamaters = serde_json::from_reader(std::io::BufReader::new(
+        std::fs::File::open(json_template_params_path.clone()).map_err(|_err| {
+            Error::Other(format!(
+                "failed to open json_template_params_path {json_template_params_path:?}"
+            ))
+        })?,
+    ))
+    .map_err(|_err| {
+        Error::Other(format!(
+            "serde_json error for {json_template_params_path:?}"
+        ))
+    })?;
+    println!("json_params : {json_params:?}");
+
+    ////////////////////////////////////////////////////////////////////////////
+    let image_full_front = image::open(json_params.path_to_full_png.clone()).map_err(|_err| {
+        Error::Other(format!(
+            "failed to open path_to_full_png {:?}",
+            json_params.path_to_full_png
+        ))
+    })?;
+
+    let image_back = image::open(json_params.path_to_side_png.clone()).map_err(|_err| {
+        Error::Other(format!(
+            "failed to open path_to_side_png {:?}",
+            json_params.path_to_side_png
+        ))
+    })?;
+
+    // Create a new RgbaImage with dimensions based on the larger of the two images
     let mut final_image = image::RgbaImage::new(WIDTH, HEIGHT);
 
     ////////////////////////////////////////////////////////////////////////////
@@ -85,89 +121,80 @@ pub fn generate_sc_template(
 
     // Load a system font (replace with the path to your TTF or OTF font file)
     let font_data = include_bytes!("../bindings/BF_Modernista-Regular.ttf");
-    let font = rusttype::Font::try_from_bytes(font_data).expect("Failed to load font");
+    let font = rusttype::Font::try_from_bytes(font_data)
+        .ok_or_else(|| Error::Other("Failed to load font".to_string()))?;
 
     // Draw boxes in a 4-way pattern with customizable color and stroke thickness
-    const BOX_LENGTH: i32 = 500;
-    const BOX_HEIGHT: i32 = 110;
-    const PADDING_H: i32 = 10;
-    const PADDING_V: i32 = 10;
 
     for button_param in &json_params.buttons_params {
-        let keybinds: Vec<String> = button_param
-            .physical_names
-            .iter()
-            .map(|physical_name| {
-                // First: get the corresponding VIRTUAL button ID from "physical_name" in json
-                // TODO(2-sticks) handle two sticks
-                let virtual_buttons = joysticks_mappings
-                    .get_virtual_button_ids_from_info_or_user_desc(physical_name)
-                    .unwrap();
+        let mut keybind_lines: Vec<String> = vec![];
 
-                // Next: get the game binding from this virtual_button_id
-                let mut actions_names: String = "".to_string();
-                for virtual_button in virtual_buttons {
-                    match virtual_button {
-                        crate::button::VirtualButtonOrSpecial::Virtual(virtual_button) => {
-                            let modifier: String = match &virtual_button.kind {
-                                crate::button::VirtualButtonKind::Momentary(shift) => match shift {
-                                    Some(shift_kind) => match shift_kind {
-                                        crate::button::VirtualShiftKind::Shift1 => {
-                                            "[SHIFT1] ".to_string()
-                                        }
-                                        crate::button::VirtualShiftKind::Shift2 => {
-                                            "[SHIFT2] ".to_string()
-                                        }
-                                    },
-                                    None => "".to_string(),
-                                },
-                                crate::button::VirtualButtonKind::Tempo(tempo) => match tempo {
-                                    crate::button::VirtualTempoKind::Short => {
-                                        "[SHORT] ".to_string()
+        for physical_name in &button_param.physical_names {
+            // First: get the corresponding VIRTUAL button ID from "physical_name" in json
+            // TODO(2-sticks) handle two sticks
+            let virtual_buttons =
+                joysticks_mappings.get_virtual_button_ids_from_info_or_user_desc(physical_name)?;
+
+            // Next: get the game binding from this virtual_button_id
+            let mut actions_names: String = String::new();
+            for virtual_button in virtual_buttons {
+                match virtual_button {
+                    crate::button::VirtualButtonOrSpecial::Virtual(virtual_button) => {
+                        let modifier: String = match &virtual_button.kind {
+                            crate::button::VirtualButtonKind::Momentary(shift) => match shift {
+                                Some(shift_kind) => match shift_kind {
+                                    crate::button::VirtualShiftKind::Shift1 => {
+                                        "[SHIFT1] ".to_string()
                                     }
-                                    crate::button::VirtualTempoKind::Long => "[LONG] ".to_string(),
-                                    crate::button::VirtualTempoKind::Double => {
-                                        "[DOUBLE] ".to_string()
+                                    crate::button::VirtualShiftKind::Shift2 => {
+                                        "[SHIFT2] ".to_string()
                                     }
                                 },
-                            };
+                                None => String::new(),
+                            },
+                            crate::button::VirtualButtonKind::Tempo(tempo) => match tempo {
+                                crate::button::VirtualTempoKind::Short => "[SHORT] ".to_string(),
+                                crate::button::VirtualTempoKind::Long => "[LONG] ".to_string(),
+                                crate::button::VirtualTempoKind::Double => "[DOUBLE] ".to_string(),
+                            },
+                        };
 
-                            let mut action_name_with_modifier = modifier;
+                        let mut action_name_with_modifier = modifier;
 
-                            match game_buttons_mapping.get_action_from_virtual_button_id(
-                                virtual_button.get_id(),
-                                &json_params.game_device_id,
-                            ) {
-                                Some(act_names) => {
-                                    action_name_with_modifier.push_str(&act_names.join("\n"));
-                                }
-                                None => action_name_with_modifier.push_str("NO BINDING"),
+                        match game_buttons_mapping.get_action_from_virtual_button_id(
+                            *virtual_button.get_id(),
+                            json_params.game_device_id,
+                        ) {
+                            Some(act_names) => {
+                                action_name_with_modifier.push_str(&act_names.join("\n"));
                             }
-
-                            actions_names.push_str(&action_name_with_modifier);
-
-                            actions_names.push_str("\n");
+                            None => action_name_with_modifier.push_str("NO BINDING"),
                         }
-                        crate::button::VirtualButtonOrSpecial::Special(special_kind) => {
-                            match special_kind {
-                                crate::button::SpecialButtonKind::Shift1 => {
-                                    actions_names.push_str("SHIFT1")
-                                }
-                                crate::button::SpecialButtonKind::Shift2 => {
-                                    actions_names.push_str("SHIFT2")
-                                }
+
+                        actions_names.push_str(&action_name_with_modifier);
+
+                        actions_names.push('\n');
+                    }
+                    crate::button::VirtualButtonOrSpecial::Special(special_kind) => {
+                        match special_kind {
+                            crate::button::SpecialButtonKind::Shift1 => {
+                                actions_names.push_str("SHIFT1");
+                            }
+                            crate::button::SpecialButtonKind::Shift2 => {
+                                actions_names.push_str("SHIFT2");
                             }
                         }
                     }
                 }
+            }
 
-                actions_names
-            })
-            .collect();
+            keybind_lines.push(actions_names);
+        }
 
-        let reference_point = match button_param.is_using_full_png_center_as_reference {
-            true => full_png_center_position,
-            false => side_png_center_position,
+        let reference_point = if button_param.is_using_full_png_center_as_reference {
+            full_png_center_position
+        } else {
+            side_png_center_position
         };
 
         match button_param.physical_names.len() {
@@ -190,8 +217,8 @@ pub fn generate_sc_template(
                     // image::Rgba([26, 26, 26, 255]),
                     image::Rgba([220, 220, 220, 255]),
                     24,
-                    keybinds,
-                );
+                    &keybind_lines,
+                )?;
 
                 draw_thicker_line_mut(
                     &mut final_image,
@@ -217,8 +244,15 @@ pub fn generate_sc_template(
 
     // Save the final image
     final_image
-        .save(json_params.path_to_output_png)
-        .expect("Failed to save the final image");
+        .save(json_params.path_to_output_png.clone())
+        .map_err(|_err| {
+            Error::Other(format!(
+                "could not write image to {:?}",
+                json_params.path_to_output_png
+            ))
+        })?;
+
+    Ok(())
 }
 
 #[derive(Debug, Clone)]
@@ -229,7 +263,7 @@ struct TextParameters<'a> {
     font: &'a Font<'static>,
 }
 
-/// https://chat.openai.com
+/// `https://chat.openai.com`
 #[derive(Debug, Clone)]
 struct BoxParameters<'a> {
     position: (i32, i32),
@@ -240,7 +274,12 @@ struct BoxParameters<'a> {
 }
 
 /// Draw a thick line
-/// https://chat.openai.com
+/// `https://chat.openai.com`
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap
+)]
 fn draw_thicker_line_mut(
     image: &mut image::RgbaImage,
     start: (i32, i32),
@@ -259,8 +298,13 @@ fn draw_thicker_line_mut(
     }
 }
 
-/// https://chat.openai.com
-fn draw_box(image: &mut image::RgbaImage, parameters: BoxParameters) {
+/// `https://chat.openai.com`
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap
+)]
+fn draw_box(image: &mut image::RgbaImage, parameters: BoxParameters<'_>) {
     imageproc::drawing::draw_filled_rect_mut(
         image,
         imageproc::rect::Rect::at(parameters.position.0, parameters.position.1)
@@ -297,50 +341,43 @@ fn draw_box(image: &mut image::RgbaImage, parameters: BoxParameters) {
         );
     }
 
-    match parameters.text_params {
-        Some(text_params) => {
-            let scale = Scale::uniform(text_params.text_size as f32);
-            // height: use the max height
-            let text_height =
-                imageproc::drawing::text_size(scale, text_params.font, &text_params.text).1;
-            // width: use the longest b/w every lines
-            let mut max_text_width: i32 = 0;
-            for line in text_params.text.split("\n") {
-                max_text_width = max_text_width
-                    .max(imageproc::drawing::text_size(scale, text_params.font, &line).0)
-            }
-
-            // Center the text, both horizontally and vertically
-            for (line_no, line) in text_params.text.split("\n").enumerate() {
-                imageproc::drawing::draw_text_mut(
-                    image,
-                    text_params.text_color,
-                    (parameters.position.0 + parameters.size.0 as i32 / 2
-                        - max_text_width as i32 / 2)
-                        .try_into()
-                        .unwrap(),
-                    // text_size.1 / 4 b/c 2 would make the bottom of the text on the bottom of the box
-                    (parameters.position.1 + parameters.size.1 as i32 / 4 - text_height as i32 / 2
-                        + line_no as i32 * text_height as i32)
-                        .try_into()
-                        .unwrap(),
-                    scale,
-                    text_params.font,
-                    &line,
-                );
-            }
+    if let Some(text_params) = parameters.text_params {
+        let scale = Scale::uniform(text_params.text_size as f32);
+        // height: use the max height
+        let text_height =
+            imageproc::drawing::text_size(scale, text_params.font, &text_params.text).1;
+        // width: use the longest b/w every lines
+        let mut max_text_width: i32 = 0;
+        for line in text_params.text.split('\n') {
+            max_text_width =
+                max_text_width.max(imageproc::drawing::text_size(scale, text_params.font, line).0);
         }
-        None => {}
+
+        // Center the text, both horizontally and vertically
+        for (line_no, line) in text_params.text.split('\n').enumerate() {
+            imageproc::drawing::draw_text_mut(
+                image,
+                text_params.text_color,
+                parameters.position.0 + parameters.size.0 as i32 / 2 - max_text_width / 2,
+                // text_size.1 / 4 b/c 2 would make the bottom of the text on the bottom of the box
+                parameters.position.1 + parameters.size.1 as i32 / 4 - text_height as i32 / 2
+                    + line_no as i32 * text_height as i32,
+                scale,
+                text_params.font,
+                line,
+            );
+        }
     }
 }
 
-/// https://chat.openai.com
+/// `https://chat.openai.com`
 ///
-/// `texts`: order is important; it MUST match with how "vkb_template_params.json" is handled
+/// `texts`: order is important; it MUST match with how "`vkb_template_params.json`" is handled
 /// - 2 boxes: vertical, top -> bottom
 /// - 3 boxes: horizontal, left -> right
 /// - 5 boxes: clockwise, starts from NORTH: N -> E -> S -> W, then center (ie the ministick "push"/"click"/"press")
 /// - 8 boxes: clockwise, starts from NORTH = N -> NE -> E -> SE -> S -> SW -> W -> NW
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 fn draw_boxes(
     image: &mut image::RgbaImage,
     pattern: usize,
@@ -354,31 +391,37 @@ fn draw_boxes(
     font: &Font<'static>,
     text_color: image::Rgba<u8>,
     text_size: u32,
-    texts: Vec<String>,
-) {
+    texts: &Vec<String>,
+) -> Result<(), Error> {
     assert_eq!(texts.len(), pattern);
 
-    let draw_parameters = |x, y, txt: &str| BoxParameters {
-        position: (x, y),
-        size: (
-            small_box_length.try_into().unwrap(),
-            small_box_height.try_into().unwrap(),
-        ),
-        color,
-        stroke_thickness,
-        text_params: Some(TextParameters {
-            text: txt.to_string(),
-            text_size,
-            text_color,
-            font,
-        }),
+    let draw_parameters = |x, y, txt: &str| {
+        Ok(BoxParameters {
+            position: (x, y),
+            size: (
+                small_box_length
+                    .try_into()
+                    .map_err(Error::TryFromIntError)?,
+                small_box_height
+                    .try_into()
+                    .map_err(Error::TryFromIntError)?,
+            ),
+            color,
+            stroke_thickness,
+            text_params: Some(TextParameters {
+                text: txt.to_string(),
+                text_size,
+                text_color,
+                font,
+            }),
+        })
     };
 
     let mut draw_4_in_cross = |text_a, text_b, text_c, text_d, text_e| {
         // top center
         draw_box(
             image,
-            draw_parameters(start_position.0, start_position.1, text_a),
+            draw_parameters(start_position.0, start_position.1, text_a)?,
         );
         // right, vertically in between "top center" and "bottom center"
         draw_box(
@@ -387,7 +430,7 @@ fn draw_boxes(
                 start_position.0 + small_box_length + padding_h,
                 start_position.1 + small_box_height + padding_v,
                 text_b,
-            ),
+            )?,
         );
         // bottom center
         draw_box(
@@ -396,7 +439,7 @@ fn draw_boxes(
                 start_position.0,
                 start_position.1 + 2 * (small_box_height + padding_v),
                 text_c,
-            ),
+            )?,
         );
         // left, vertically in between "top center" and "bottom center"
         draw_box(
@@ -405,7 +448,7 @@ fn draw_boxes(
                 start_position.0 - small_box_length - padding_h,
                 start_position.1 + small_box_height + padding_v,
                 text_d,
-            ),
+            )?,
         );
         // center center, "push"/"click"/"press"
         draw_box(
@@ -414,15 +457,17 @@ fn draw_boxes(
                 start_position.0,
                 start_position.1 + small_box_height + padding_v,
                 text_e,
-            ),
+            )?,
         );
+
+        Ok::<(), Error>(())
     };
 
     match pattern {
         2 => {
             draw_box(
                 image,
-                draw_parameters(start_position.0, start_position.1, &texts[0]),
+                draw_parameters(start_position.0, start_position.1, &texts[0])?,
             );
             draw_box(
                 image,
@@ -430,15 +475,15 @@ fn draw_boxes(
                     start_position.0,
                     start_position.1 + small_box_height + padding_v,
                     &texts[1],
-                ),
+                )?,
             );
         }
         5 => {
-            draw_4_in_cross(&texts[0], &texts[1], &texts[2], &texts[3], &texts[4]);
+            draw_4_in_cross(&texts[0], &texts[1], &texts[2], &texts[3], &texts[4])?;
         }
         8 => {
             // the 4 as above
-            draw_4_in_cross(&texts[0], &texts[2], &texts[4], &texts[6], "");
+            draw_4_in_cross(&texts[0], &texts[2], &texts[4], &texts[6], "")?;
 
             // PLUS:
             // top right = NE
@@ -448,7 +493,7 @@ fn draw_boxes(
                     start_position.0 + small_box_length + padding_h,
                     start_position.1,
                     &texts[1],
-                ),
+                )?,
             );
             // bottom right = SE
             draw_box(
@@ -457,7 +502,7 @@ fn draw_boxes(
                     start_position.0 + small_box_length + padding_h,
                     start_position.1 + 2 * (small_box_height + padding_v),
                     &texts[3],
-                ),
+                )?,
             );
             // bottom left = SW
             draw_box(
@@ -466,7 +511,7 @@ fn draw_boxes(
                     start_position.0 - small_box_length - padding_h,
                     start_position.1 + 2 * (small_box_height + padding_v),
                     &texts[5],
-                ),
+                )?,
             );
             // top left = NW
             draw_box(
@@ -475,13 +520,13 @@ fn draw_boxes(
                     start_position.0 - small_box_length - padding_h,
                     start_position.1,
                     &texts[7],
-                ),
+                )?,
             );
         }
         1 => {
             draw_box(
                 image,
-                draw_parameters(start_position.0, start_position.1, &texts[0]),
+                draw_parameters(start_position.0, start_position.1, &texts[0])?,
             );
         }
         // 3 horizontal
@@ -489,16 +534,16 @@ fn draw_boxes(
             // left
             draw_box(
                 image,
-                draw_parameters(start_position.0, start_position.1, &texts[0]),
+                draw_parameters(start_position.0, start_position.1, &texts[0])?,
             );
             // center
             draw_box(
                 image,
                 draw_parameters(
-                    start_position.0 + 1 * (small_box_length + padding_h),
+                    start_position.0 + (small_box_length + padding_h),
                     start_position.1,
                     &texts[1],
-                ),
+                )?,
             );
             // right
             draw_box(
@@ -507,14 +552,16 @@ fn draw_boxes(
                     start_position.0 + 2 * (small_box_length + padding_h),
                     start_position.1,
                     &texts[2],
-                ),
+                )?,
             );
         }
         _ => {
             // Handle other cases or provide a default behavior
             unimplemented!("draw_boxes: pattern = only 1/2/5/8 are supported");
         }
-    }
+    };
+
+    Ok(())
 }
 
 /// NOTE: this is for one joystick, either L or right

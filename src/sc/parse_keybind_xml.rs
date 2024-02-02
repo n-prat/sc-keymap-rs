@@ -2,21 +2,9 @@
 
 use std::{collections::HashMap, path::PathBuf};
 
-use quick_xml::DeError;
 use serde::Deserialize;
-use thiserror::Error;
 
-#[derive(Error, Debug)]
-pub enum KeybindError {
-    #[error("the data for key `{0}` is not available")]
-    Redaction(String),
-    #[error("invalid header (expected {expected:?}, found {found:?})")]
-    InvalidHeader { expected: String, found: String },
-    #[error("read error")]
-    ReadError { err: std::io::Error },
-    #[error("deserialization error")]
-    DeError { err: DeError },
-}
+use crate::Error;
 
 /// Maps eg "<rebind input="js1_button2"/>"
 #[derive(Deserialize, Debug)]
@@ -30,7 +18,7 @@ struct XmlRebindInput {
 ///     <rebind input="js1_button2"/>
 /// </action>
 ///
-/// using the above "XmlRebindInput"
+/// using the above "`XmlRebindInput`"
 ///
 /// NOTE apparently sometimes we can have two rebinds???
 /// ```xml
@@ -118,17 +106,17 @@ pub struct GameButtonsMapping {
 impl GameButtonsMapping {
     /// [Star Citizen] specific:
     /// CHECK for:
-    /// - "js1_button{virtual_button_id}"
-    /// - "js2_button{virtual_button_id}"
+    /// - "`js1_button{virtual_button_id`}"
+    /// - "`js2_button{virtual_button_id`}"
     ///
     /// `joystick_id` SHOULD be either "1" or "2"
     /// or more exactly it MUST match the number/ID of "<options type="joystick" instance=" defined in
-    /// "layout_AAA_exported.xml"
+    /// "`layout_AAA_exported.xml`"
     ///
     pub fn get_action_from_virtual_button_id(
         &self,
-        virtual_button_id: &u8,
-        joystick_id: &u8,
+        virtual_button_id: u8,
+        joystick_id: u8,
     ) -> Option<&Vec<String>> {
         match self
             .map_virtual_button_to_actions
@@ -140,37 +128,48 @@ impl GameButtonsMapping {
     }
 }
 
+/// Each key,value in the csv will be in the result Vec:
+/// - (key,value)
+/// That way when checking with `contains` the order does not matter.
+///
+/// (Yes, the proper way would be to use a map/set)
+///
+fn parse_csv_binding_pairs_to_ignore(
+    sc_bindings_to_ignore: Option<csv::Reader<std::fs::File>>,
+) -> Result<Vec<(String, String)>, Error> {
+    let mut binding_pairs_to_ignore = vec![];
+
+    if let Some(sc_bindings_to_ignore) = sc_bindings_to_ignore {
+        for record in sc_bindings_to_ignore.into_records() {
+            let record = record.map_err(|_err| Error::Other("record missing?".to_string()))?;
+            let left = record
+                .get(0)
+                .ok_or_else(|| Error::Other("record: could not get column 0".to_string()))?;
+            let right = record
+                .get(1)
+                .ok_or_else(|| Error::Other("record: could not get column 1".to_string()))?;
+
+            binding_pairs_to_ignore.push((left.to_string(), right.to_string()));
+        }
+    };
+
+    Ok(binding_pairs_to_ignore)
+}
+
+/// Parse a Star Citizen keybinds, and optionally ignore warnings related to user-given keybinds pairs
+///
+/// # Errors
 ///
 pub fn parse_keybind(
     xml_path: PathBuf,
     sc_bindings_to_ignore: Option<csv::Reader<std::fs::File>>,
-) -> Result<GameButtonsMapping, KeybindError> {
-    let binding_pairs_to_ignore: Vec<(String, String)> = match sc_bindings_to_ignore {
-        Some(sc_bindings_to_ignore) => {
-            let csv_records = sc_bindings_to_ignore
-                .into_records()
-                .into_iter()
-                .map(|record| {
-                    let record = record.unwrap();
-                    let left = record.get(0).unwrap();
-                    let right = record.get(1).unwrap();
+) -> Result<GameButtonsMapping, Error> {
+    let binding_pairs_to_ignore = parse_csv_binding_pairs_to_ignore(sc_bindings_to_ignore)?;
 
-                    (left.to_string(), right.to_string())
-                })
-                .collect();
-
-            csv_records
-        }
-        None => {
-            vec![]
-        }
-    };
-
-    let xml_str =
-        std::fs::read_to_string(xml_path).map_err(|err| KeybindError::ReadError { err })?;
+    let xml_str = std::fs::read_to_string(xml_path).map_err(|err| Error::ReadError { err })?;
 
     let xml_data: XmlFull =
-        quick_xml::de::from_str(&xml_str).map_err(|err| KeybindError::DeError { err })?;
+        quick_xml::de::from_str(&xml_str).map_err(|err| Error::DeError { err })?;
 
     log::debug!("keybinds: {:?}", xml_data);
 
@@ -196,7 +195,7 @@ pub fn parse_keybind(
             //     <rebind input="kb1_o" />
             // </action>
             // -> skip
-            if all_joystick_keybinds.len() == 0 {
+            if all_joystick_keybinds.is_empty() {
                 log::info!("[sc] parse_keybind: NO key for \"{action_name}\"");
                 continue;
             }
@@ -207,9 +206,11 @@ pub fn parse_keybind(
             // <rebind input="js2_ " />
             // -> skip
             if logical_button_name
-                .split("_")
+                .split('_')
                 .last()
-                .unwrap()
+                .ok_or_else(|| {
+                    Error::Other("logical_button_name unexpected number of _".to_string())
+                })?
                 .trim()
                 .is_empty()
             {
@@ -217,32 +218,37 @@ pub fn parse_keybind(
                 continue;
             }
 
+            // insert a new vec if needed
             map_virtual_button_to_actions
                 .entry(logical_button_name.clone())
-                // NOT inserted = the virtual button was already processed!
-                .and_modify(|actions: &mut Vec<String>| {
-                    // update the bindings EVEN if duplicated
-                    // we still WANT to print them in the final template!
-                    actions.push(action_name.clone());
+                .or_insert(vec![]);
 
-                    let new_pair1 = (
-                        actions.first().unwrap().to_string(),
-                        action_name.to_string(),
+            if let Some(actions) = map_virtual_button_to_actions.get_mut(logical_button_name) {
+                // update the bindings EVEN if duplicated
+                // we still WANT to print them in the final template!
+                actions.push(action_name.clone());
+
+                // first pair: (0, 1)
+                let new_pair1 = (
+                    actions
+                        .first()
+                        .ok_or_else(|| Error::Other("actions is empty".to_string()))?
+                        .to_string(),
+                    action_name.to_string(),
+                );
+                // same pair but inverted (1, 0)
+                let new_pair2 = (new_pair1.1.to_string(), new_pair1.0.to_string());
+
+                if binding_pairs_to_ignore.contains(&new_pair1)
+                    || binding_pairs_to_ignore.contains(&new_pair2)
+                {
+                    log::info!("skipping {new_pair1:?}");
+                } else {
+                    log::warn!(
+                        "keybind duplicated : {logical_button_name} used for : \"{actions:?}\""
                     );
-                    let new_pair2 = (new_pair1.1.to_string(), new_pair1.0.to_string());
-
-                    if binding_pairs_to_ignore.contains(&new_pair1)
-                        || binding_pairs_to_ignore.contains(&new_pair2)
-                    {
-                        log::info!("skipping {new_pair1:?}");
-                    } else {
-                        log::warn!(
-                            "keybind duplicated : {logical_button_name} used for : \"{actions:?}\""
-                        );
-                    }
-                })
-                // inserted = nothing to do
-                .or_insert(vec![action_name.clone()]);
+                }
+            }
         }
     }
 
@@ -262,7 +268,7 @@ pub fn parse_keybind(
     //             let name = reader
     //                 .decoder()
     //                 .decode(name.as_ref())
-    //                 .map_err(|_| KeybindError::Unknown)?;
+    //                 .map_err(|_| Error::Unknown)?;
     //             log::debug!("read start event {:?}", name.as_ref());
     //             count += 1;
     //         }

@@ -1,13 +1,6 @@
 use clap::Parser;
-use std::io::Error;
+use sc_keymap_rs::Error;
 use std::path::PathBuf;
-use std::time::Instant;
-
-use sc_keymap_rs::{
-    sc::parse_keybind_xml,
-    template_gen::generate_sc_template,
-    vkb::{self, parse_and_check_vkb_both_sticks},
-};
 
 /// https://github.com/J-F-Liu/lopdf/blob/master/examples/extract_toc.rs
 ///
@@ -79,30 +72,6 @@ fn main() -> Result<(), Error> {
 
     let args = Args::parse_args();
 
-    let _start_time = Instant::now();
-    // let input_paths: Vec<_> = args
-    //     .input_paths
-    //     .iter()
-    //     .map(|input_path| {
-    //         PathBuf::from(
-    //             shellexpand::full(input_path.to_str().unwrap())
-    //                 .unwrap()
-    //                 .to_string(),
-    //         )
-    //     })
-    //     .collect();
-    // println!("input_paths : {:?}", input_paths);
-
-    // TODO https://www.dariocancelliere.it/blog/2020/09/29/pdf-manipulation-with-rust-and-considerations
-    // "Filling form fields"
-
-    // TODO read multiple pdfs
-    // pdf_merge::merge(pdf_paths.clone())?;
-
-    // for pdf_path in pdf_paths {
-    //     pdf_form::list_forms(&pdf_path);
-    // }
-
     ////////////////////////////////////////////////////////////////////////////
     // First step: parse the GAME mapping
     // NOTE: 1 mapping, irregardless of the number of physical sticks/devices
@@ -116,9 +85,7 @@ fn main() -> Result<(), Error> {
     };
 
     let game_buttons_mapping = match args.sc_mapping {
-        Some(sc_mapping) => {
-            parse_keybind_xml::parse_keybind(sc_mapping, sc_bindings_to_ignore).ok()
-        }
+        Some(sc_mapping) => sc_keymap_rs::sc_parse_keybind(sc_mapping, sc_bindings_to_ignore).ok(),
         None => {
             println!("SKIP : no sc_mapping path given");
             None
@@ -130,9 +97,9 @@ fn main() -> Result<(), Error> {
     // NOTE: many mappings, one per physical sticks/devices
 
     let joysticks_mappings = match &args.vkb_report_path {
-        Some(vkb_report_path) => parse_and_check_vkb_both_sticks(
+        Some(vkb_report_path) => sc_keymap_rs::vkb_parse_and_check_both_sticks(
             vkb_report_path.clone(),
-            args.vkb_user_provided_data_path,
+            &args.vkb_user_provided_data_path,
         )
         .ok(),
         None => {
@@ -148,18 +115,13 @@ fn main() -> Result<(), Error> {
 
     match (game_buttons_mapping, joysticks_mappings) {
         (Some(game_buttons_mapping), Some(joysticks_mappings)) => {
-            // svg_parse::svg_parse(
-            //     vkb_template_path,
-            //     args.vkb_output_png_path
-            //         .expect("vkb_template_path set but missing vkb_output_png_path"),
-            // );
-
-            generate_sc_template(
-                game_buttons_mapping,
-                joysticks_mappings,
-                args.vkb_template_params_path
+            sc_keymap_rs::generate_template(
+                &game_buttons_mapping,
+                &joysticks_mappings,
+                &args
+                    .vkb_template_params_path
                     .expect("missing --vkb-template-params-path"),
-            );
+            )?;
         }
         _ => {
             // missing stuff; nothing to do
