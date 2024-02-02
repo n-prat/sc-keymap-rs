@@ -10,211 +10,80 @@
                 <m3 u="" />
             </b1>
             <TfrxNullBand Height="1046,92981" Left="0" Top="0" Width="718,1107" l="0" t="0" />
-            <b2 t="173,89765" h="45,55906">
-                <p2 w="228" h="22" ImageIndex="2" Transparent="1" />
-                <m4 u="Line" />
-                <m5 u="1" />
-                <m6 u="[R1.1]" />
-                <m7 h="33"
-                    u="&#60;b&#62;#1 (E1) &#60;/b&#62; / &#60;b&#62;#2  - Encoder 2/4&#60;/b&#62;&#13;&#10;Virtual buttons : #61 / #62" />
-                <g1 Left="0" Top="6,22046999999998" Width="718,1107" Height="1,88976378"
-                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
-            </b2>
-            <b3 t="219,45671" h="33,77953">
-                <s1 />
-                <p3 w="113" h="22" ImageIndex="3" Transparent="1" />
-                <m8 u="61" />
-                <s2 />
-                <m9 u="&#60;b&#62;#61 &#60;/b&#62; Joystick button : #61" />
-                <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
-                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
-            </b3>
-            <b3 t="253,23624" h="33,77953">
-                <s1 />
-                <p3 w="113" h="22" ImageIndex="4" Transparent="1" />
-                <m8 u="62" />
-                <s2 />
-                <m9 u="&#60;b&#62;#62 &#60;/b&#62; Joystick button : #62" />
-                <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
-                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
-            </b3>
-            <b2 t="287,01577" h="39,01577">
+            <b2 t="287,01577" h="60,55906">
                 <p2 w="113" h="22" ImageIndex="5" Transparent="1" />
                 <m4 u="1" />
                 <m5 u="3" />
                 <m6 u="[R1.3]" />
-                <m7
-                    u="&#60;b&#62;#3 (E2) &#60;/b&#62;&#60;b&#62;- Button with momentary action&#60;/b&#62;" />
+                <m7 h="48"
+                    u="&#60;b&#62;#3 (E2) &#60;/b&#62;&#60;b&#62;- Button with momentary action&#60;/b&#62;&#13;&#10;Virtual button with SHIFT1 = 102&#13;&#10;Virtual button with SHIFT2 = 103" />
                 <g1 Left="0" Top="6,22046999999998" Width="718,1107" Height="1,88976378"
                     ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
             </b2>
-            <b3 t="326,03154" h="33,77953">
+            <b3 t="347,57483" h="33,77953">
                 <s1 />
                 <p3 w="113" h="22" ImageIndex="6" Transparent="1" />
                 <m8 u="3" />
                 <s2 />
-                <m9 u="&#60;b&#62;#3 &#60;/b&#62; Joystick button : #25" />
+                <m9 u="&#60;b&#62;#3 &#60;/b&#62; Joystick button : #3" />
                 <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
                     ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
             </b3>
-            <b2 t="359,81107" h="39,01577">
-                <p2 w="113" h="22" ImageIndex="7" Transparent="1" />
+            <b3 t="381,35436" h="33,77953">
+                <s1 />
+                <p3 w="113" h="22" ImageIndex="7" Transparent="1" />
+                <m8 u="102" />
+                <s2 />
+                <m9 u="&#60;b&#62;#102 &#60;/b&#62; Joystick button : #102" />
+                <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
+                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
+            </b3>
+            <b3 t="415,13389" h="33,77953">
+                <s1 />
+                <p3 w="113" h="22" ImageIndex="8" Transparent="1" />
+                <m8 u="103" />
+                <s2 />
+                <m9 u="&#60;b&#62;#103 &#60;/b&#62; Joystick button : #103" />
+                <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
+                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
+            </b3>
+            <b2 t="448,91342" h="60,55906">
+                <p2 w="113" h="22" ImageIndex="9" Transparent="1" />
                 <m4 u="2" />
                 <m5 u="4" />
                 <m6 u="[R1.4]" />
-                <m7
-                    u="&#60;b&#62;#4 &#60;/b&#62;&#60;b&#62;- Button with momentary action&#60;/b&#62;" />
-                <g1 Left="0" Top="6,22046999999998" Width="718,1107" Height="1,88976378"
-                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
-            </b2>
-            <b3 t="398,82684" h="33,77953">
-                <s1 />
-                <p3 w="113" h="22" ImageIndex="8" Transparent="1" />
-                <m8 u="4" />
-                <s2 />
-                <m9 u="&#60;b&#62;#4 &#60;/b&#62; Joystick button : #24" />
-                <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
-                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
-            </b3>
-            <b2 t="432,60637" h="60,55906">
-                <p2 w="113" h="22" ImageIndex="9" Transparent="1" />
-                <m4 u="3" />
-                <m5 u="5" />
-                <m6 u="[R1.5]" />
                 <m7 h="48"
-                    u="&#60;b&#62;#5 (F3) &#60;/b&#62;&#60;b&#62;TEMPO &#60;/b&#62;&#13;&#10;Virtual button Short #5&#13;&#10;Virtual button Long #94" />
+                    u="&#60;b&#62;#4 &#60;/b&#62;&#60;b&#62;- Button with momentary action&#60;/b&#62;&#13;&#10;Virtual button with SHIFT1 = 105&#13;&#10;Virtual button with SHIFT2 = 104" />
                 <g1 Left="0" Top="6,22046999999998" Width="718,1107" Height="1,88976378"
                     ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
             </b2>
-            <b3 t="493,16543" h="33,77953">
+            <b3 t="509,47248" h="33,77953">
                 <s1 />
                 <p3 w="113" h="22" ImageIndex="10" Transparent="1" />
-                <m8 u="5" />
+                <m8 u="4" />
                 <s2 />
-                <m9 u="&#60;b&#62;#5 &#60;/b&#62; Joystick button : #51" />
+                <m9 u="&#60;b&#62;#4 &#60;/b&#62; Joystick button : #4" />
                 <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
                     ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
             </b3>
-            <b3 t="526,94496" h="33,77953">
+            <b3 t="543,25201" h="33,77953">
                 <s1 />
                 <p3 w="113" h="22" ImageIndex="11" Transparent="1" />
-                <m8 u="94" />
+                <m8 u="105" />
                 <s2 />
-                <m9 u="&#60;b&#62;#94 &#60;/b&#62; Joystick button : #94" />
+                <m9 u="&#60;b&#62;#105 &#60;/b&#62; Joystick button : #105" />
                 <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
                     ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
             </b3>
-            <b3 t="560,72449" h="33,77953">
+            <b3 t="577,03154" h="33,77953">
                 <s1 />
                 <p3 w="113" h="22" ImageIndex="12" Transparent="1" />
-                <m8 u="95" />
+                <m8 u="104" />
                 <s2 />
-                <m9 u="&#60;b&#62;#95 &#60;/b&#62; Joystick button : #95" />
+                <m9 u="&#60;b&#62;#104 &#60;/b&#62; Joystick button : #104" />
                 <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
                     ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
             </b3>
-            <b2 t="594,50402" h="60,55906">
-                <p2 w="113" h="22" ImageIndex="13" Transparent="1" />
-                <m4 u="4" />
-                <m5 u="6" />
-                <m6 u="[R1.6]" />
-                <m7 h="48"
-                    u="&#60;b&#62;#6 (F1) &#60;/b&#62;&#60;b&#62;TEMPO &#60;/b&#62;&#13;&#10;Virtual button Short #6&#13;&#10;Virtual button Long #96" />
-                <g1 Left="0" Top="6,22046999999998" Width="718,1107" Height="1,88976378"
-                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
-            </b2>
-            <b3 t="655,06308" h="33,77953">
-                <s1 />
-                <p3 w="113" h="22" ImageIndex="14" Transparent="1" />
-                <m8 u="6" />
-                <s2 />
-                <m9 u="&#60;b&#62;#6 &#60;/b&#62; Joystick button : #52" />
-                <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
-                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
-            </b3>
-            <b3 t="688,84261" h="33,77953">
-                <s1 />
-                <p3 w="113" h="22" ImageIndex="15" Transparent="1" />
-                <m8 u="96" />
-                <s2 />
-                <m9 u="&#60;b&#62;#96 &#60;/b&#62; Joystick button : #96" />
-                <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
-                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
-            </b3>
-            <b3 t="722,62214" h="33,77953">
-                <s1 />
-                <p3 w="113" h="22" ImageIndex="16" Transparent="1" />
-                <m8 u="97" />
-                <s2 />
-                <m9 u="&#60;b&#62;#97 &#60;/b&#62; Joystick button : #97" />
-                <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
-                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
-            </b3>
-            <b2 t="756,40167" h="60,55906">
-                <p2 w="113" h="22" ImageIndex="17" Transparent="1" />
-                <m4 u="5" />
-                <m5 u="7" />
-                <m6 u="[R1.7]" />
-                <m7 h="48"
-                    u="&#60;b&#62;#7 (F2) &#60;/b&#62;&#60;b&#62;TEMPO &#60;/b&#62;&#13;&#10;Virtual button Short #7&#13;&#10;Virtual button Long #98" />
-                <g1 Left="0" Top="6,22046999999998" Width="718,1107" Height="1,88976378"
-                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
-            </b2>
-            <b3 t="816,96073" h="33,77953">
-                <s1 />
-                <p3 w="113" h="22" ImageIndex="18" Transparent="1" />
-                <m8 u="7" />
-                <s2 />
-                <m9 u="&#60;b&#62;#7 &#60;/b&#62; Joystick button : #53" />
-                <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
-                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
-            </b3>
-            <b3 t="850,74026" h="33,77953">
-                <s1 />
-                <p3 w="113" h="22" ImageIndex="19" Transparent="1" />
-                <m8 u="98" />
-                <s2 />
-                <m9 u="&#60;b&#62;#98 &#60;/b&#62; Joystick button : #98" />
-                <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
-                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
-            </b3>
-            <b3 t="884,51979" h="33,77953">
-                <s1 />
-                <p3 w="113" h="22" ImageIndex="20" Transparent="1" />
-                <m8 u="99" />
-                <s2 />
-                <m9 u="&#60;b&#62;#99 &#60;/b&#62; Joystick button : #99" />
-                <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
-                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
-            </b3>
-            <b2 t="918,29932" h="39,01577">
-                <p2 w="113" h="22" ImageIndex="21" Transparent="1" />
-                <m4 u="6" />
-                <m5 u="8" />
-                <m6 u="[R1.8]" />
-                <m7
-                    u="&#60;b&#62;#8 &#60;/b&#62;&#60;b&#62;- Button with momentary action&#60;/b&#62;" />
-                <g1 Left="0" Top="6,22046999999998" Width="718,1107" Height="1,88976378"
-                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
-            </b2>
-            <b3 t="957,31509" h="33,77953">
-                <s1 />
-                <p3 w="113" h="22" ImageIndex="22" Transparent="1" />
-                <m8 u="8" />
-                <s2 />
-                <m9 u="&#60;b&#62;#8 &#60;/b&#62; Joystick button : #8" />
-                <g2 Left="0" Top="4,22046999999998" Width="718,1107" Height="1,13385826771654"
-                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
-            </b3>
-            <b2 t="991,09462" h="33,15801">
-                <m4 u="7" />
-                <m5 u="9" />
-                <m6 u="[R2.1]" />
-                <m7 h="20,59895"
-                    u="&#60;b&#62;#9 (Fire 2-nd stage) &#60;/b&#62;&#60;b&#62;- Button with momentary action&#60;/b&#62;" />
-                <g1 Left="0" Top="6,22046999999998" Width="718,1107" Height="1,88976378"
-                    ShowHint="false" BeginColor="12632256" Style="gsHorizontal" Color="10526880" />
-            </b2>
             <b5 t="1024,25263" />
         </page0>
     </previewpages>

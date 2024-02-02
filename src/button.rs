@@ -145,6 +145,7 @@ pub(crate) enum SpecialButtonKind {
     Shift2,
 }
 
+#[derive(PartialEq, Debug)]
 pub(crate) enum VirtualButtonOrSpecial {
     Virtual(VirtualButton),
     Special(SpecialButtonKind),

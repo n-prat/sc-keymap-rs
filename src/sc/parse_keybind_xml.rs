@@ -336,12 +336,19 @@ mod tests {
     fn test_parse_xml_full() {
         let xml_str = r#"
         <ActionMaps version="1" optionsVersion="2" rebindVersion="2" profileName="vkb_custom_v1">
-        <actionmap name="player_input_optical_tracking">
-            <action name="foip_pushtotalk_proximity">
-                <rebind input="kb1_lalt+capslock" />
-            </action>
-        </actionmap>
-    </ActionMaps>
+            <CustomisationUIHeader label="vkb" description="" image="">
+            </CustomisationUIHeader>
+            <deviceoptions name=" VKBsim Gladiator EVO  L    {0201231D-0000-0000-0000-504944564944}">
+                <option input="x" deadzone="0.0198" />
+            </deviceoptions>
+            <options type="keyboard" instance="1" Product="Keyboard  {6F1D2B61-D5A0-11CF-BFC7-444553540000}" />
+            <modifiers />
+            <actionmap name="player_input_optical_tracking">
+                <action name="foip_pushtotalk_proximity">
+                    <rebind input="kb1_lalt+capslock" />
+                </action>
+            </actionmap>
+        </ActionMaps>
     "#;
 
         quick_xml::de::from_str::<XmlFull>(xml_str).unwrap();

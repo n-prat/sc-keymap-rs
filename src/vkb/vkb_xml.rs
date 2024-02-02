@@ -556,6 +556,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "VKB report merging not supported anymore, for now"]
     fn test_parse_report_full_b2_merging() {
         assert!(VkbReport::new(
             concat!(

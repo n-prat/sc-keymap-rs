@@ -61,18 +61,21 @@ pub fn parse_and_check_vkb_both_sticks(
 mod tests {
     use std::collections::hash_map;
 
-    use crate::button::{Button, PhysicalButtonKind, ShiftKind};
+    use crate::button::{
+        PhysicalButton, PhysicalButtonKind, ShiftKind, VirtualButton, VirtualButtonKind,
+        VirtualButtonOrSpecial,
+    };
 
     use super::*;
 
-    fn get_sample_mappings() -> VkbBothSticksMappings {
+    fn get_sample_mappings() -> JoystickButtonsMapping {
         // for simplicity both L and R sticks use the same config
         let config = JoystickButtonsMapping {
             map_virtual_button_id_to_parent_physical_buttons: hash_map::HashMap::from([
                 // Most basic case: a standard button, no user-injected data (so user_desc is empty)
                 (
                     44,
-                    vec![Button::new_physical(
+                    vec![PhysicalButton::new(
                         27,
                         PhysicalButtonKind::Momentary {
                             shift: Some(ShiftKind::Shift12 {
@@ -89,7 +92,7 @@ mod tests {
                 // Here we have both "info" and "user_desc" -> "user_desc" is ignored
                 (
                     108,
-                    vec![Button::new_physical(
+                    vec![PhysicalButton::new(
                         12,
                         PhysicalButtonKind::Momentary {
                             shift: Some(ShiftKind::Shift12 {
@@ -108,7 +111,7 @@ mod tests {
                 // Here we SKIP "info" and only map using "user_desc"
                 (
                     72,
-                    vec![Button::new_physical(
+                    vec![PhysicalButton::new(
                         72,
                         PhysicalButtonKind::Momentary {
                             shift: Some(ShiftKind::Shift2 {
@@ -121,11 +124,30 @@ mod tests {
                     )],
                 ),
             ]),
-            map_physical_button_id_to_children_virtual_button_ids: hash_map::HashMap::from([
-                (27, vec![44]),
-                (12, vec![108]),
-                (72, vec![72]),
+            map_physical_button_id_to_children_virtual_buttons: hash_map::HashMap::from([
+                (
+                    27,
+                    vec![VirtualButton {
+                        id: 44,
+                        kind: VirtualButtonKind::Momentary(None),
+                    }],
+                ),
+                (
+                    12,
+                    vec![VirtualButton {
+                        id: 108,
+                        kind: VirtualButtonKind::Momentary(None),
+                    }],
+                ),
+                (
+                    72,
+                    vec![VirtualButton {
+                        id: 72,
+                        kind: VirtualButtonKind::Momentary(None),
+                    }],
+                ),
             ]),
+            map_special_buttons: hash_map::HashMap::new(),
             // physical_buttons_with_desc: vec![
             //     PhysicalButtonWithDesc {
             //         id: 27,
@@ -148,10 +170,7 @@ mod tests {
             // ],
         };
 
-        VkbBothSticksMappings {
-            vkb_mappings1: config.clone(),
-            vkb_mappings2: config,
-        }
+        config
     }
 
     #[test]
@@ -160,10 +179,12 @@ mod tests {
 
         assert_eq!(
             sample_mappings
-                .get_virtual_button_ids_from_info_or_user_desc("(A4 left)", false)
-                .unwrap()
-                .get_id(),
-            44
+                .get_virtual_button_ids_from_info_or_user_desc("(A4 left)")
+                .unwrap(),
+            vec![VirtualButtonOrSpecial::Virtual(VirtualButton {
+                id: 44,
+                kind: VirtualButtonKind::Momentary(None)
+            })]
         );
     }
 
@@ -173,10 +194,12 @@ mod tests {
 
         assert_eq!(
             sample_mappings
-                .get_virtual_button_ids_from_info_or_user_desc("(A2)", false)
-                .unwrap()
-                .get_id(),
-            108
+                .get_virtual_button_ids_from_info_or_user_desc("(A2)")
+                .unwrap(),
+            vec![VirtualButtonOrSpecial::Virtual(VirtualButton {
+                id: 108,
+                kind: VirtualButtonKind::Momentary(None)
+            })]
         );
     }
 
@@ -186,10 +209,12 @@ mod tests {
 
         assert_eq!(
             sample_mappings
-                .get_virtual_button_ids_from_info_or_user_desc("A1 8-way ministick NW", false)
-                .unwrap()
-                .get_id(),
-            72
+                .get_virtual_button_ids_from_info_or_user_desc("A1 8-way ministick NW")
+                .unwrap(),
+            vec![VirtualButtonOrSpecial::Virtual(VirtualButton {
+                id: 72,
+                kind: VirtualButtonKind::Momentary(None)
+            })]
         );
     }
 }
