@@ -228,6 +228,11 @@ pub fn parse_keybind(
                 // we still WANT to print them in the final template!
                 actions.push(action_name.clone());
 
+                // SHORTCUT if there is still only one action: we can stop now
+                if actions.len() < 2 {
+                    continue;
+                }
+
                 // first pair: (0, 1)
                 let new_pair1 = (
                     actions
