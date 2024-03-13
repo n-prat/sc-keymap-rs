@@ -391,7 +391,7 @@ fn draw_boxes(
     font: &Font<'static>,
     text_color: image::Rgba<u8>,
     text_size: u32,
-    texts: &Vec<String>,
+    texts: &[String],
 ) -> Result<(), Error> {
     assert_eq!(texts.len(), pattern);
 
