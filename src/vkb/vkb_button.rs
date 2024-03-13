@@ -103,6 +103,12 @@ impl JoystickButtonsMapping {
     /// CHECK/LOG the "free" Virtual buttons
     /// `VkbDevCfg` "auto" should probably work but it ends up duplicating virtual buttons
     /// This is REALLY useful when trying to add SHIFT1/2/TEMPO to an existing button without messing up existing keybinds
+    /// IMPORTANT cf "4.2.1. Button mapping wizard dialog" in `Njoy32_2_19_En.pdf`
+    /// [2] We MUST consider VIRTUAL ID X is free IFF:
+    ///     - there is no virtual button mapped using this ID (obviously)
+    ///     - AND there is no physical button using this LINE NUMBER (EVEN if it's remapped)
+    /// NOTE: it is allowed to do it in `VKBDevCfg` but it's a waste of time to try because in the end you will
+    /// get two physical buttons activating the conflicting virtual one.
     pub(crate) fn log_free_virtual_buttons(&self) -> Vec<u8> {
         const NB_VIRTUAL_BUTTONS: u8 = 128;
 
@@ -113,7 +119,15 @@ impl JoystickButtonsMapping {
                 .map_virtual_button_id_to_parent_physical_buttons
                 .contains_key(&i)
             {
-                unused_virtual_buttons.push(i);
+                // cf [2]
+                if self
+                    .map_physical_button_id_to_children_virtual_buttons
+                    .contains_key(&i)
+                {
+                    log::debug!("log_free_virtual_buttons : VIRTUAL {i} is a physical line!");
+                } else {
+                    unused_virtual_buttons.push(i);
+                }
             }
         }
 
