@@ -214,7 +214,7 @@ pub fn parse_keybind(
                 .trim()
                 .is_empty()
             {
-                log::info!("[sc] parse_keybind: empty key for \"{action_name}\" = \"{logical_button_name}\"");
+                log::debug!("[sc] parse_keybind: empty key for \"{action_name}\" = \"{logical_button_name}\"");
                 continue;
             }
 

@@ -52,7 +52,7 @@ pub fn generate_template(
             "serde_json error for {json_template_params_path:?}"
         ))
     })?;
-    println!("json_params : {json_params:?}");
+    log::debug!("json_params : {json_params:?}");
 
     ////////////////////////////////////////////////////////////////////////////
     let image_full_front = image::open(json_params.path_to_full_png.clone()).map_err(|_err| {

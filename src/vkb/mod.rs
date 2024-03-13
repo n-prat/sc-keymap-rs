@@ -49,10 +49,10 @@ pub fn parse_and_check_vkb_both_sticks(
     };
 
     let vkb_report = parse_report(stick_fp3_report_path)?;
-    log::info!("vkb_report : {:#?}", vkb_report);
+    log::debug!("vkb_report : {:#?}", vkb_report);
 
     let vkb_mappings = check_report(vkb_report, vkb_user_provided_data)?;
-    log::info!("vkb_buttons : {:#?}", vkb_mappings);
+    log::debug!("vkb_buttons : {:#?}", vkb_mappings);
 
     Ok(vkb_mappings)
 }
