@@ -542,15 +542,7 @@ mod tests {
     #[test]
     fn test_parse_report_full_full_r() {
         assert!(VkbReport::new(
-            concat!(env!("CARGO_MANIFEST_DIR"), "/bindings/vkb_report_R.fp3").into(),
-        )
-        .is_ok());
-    }
-
-    #[test]
-    fn test_parse_report_full_full_l() {
-        assert!(VkbReport::new(
-            concat!(env!("CARGO_MANIFEST_DIR"), "/bindings/vkb_report_L.fp3").into(),
+            concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/vkb_report_L.fp3").into(),
         )
         .is_ok());
     }

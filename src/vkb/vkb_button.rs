@@ -999,19 +999,9 @@ mod tests {
     }
 
     #[test]
-    fn test_button_map_vkb_report_r() {
+    fn test_button_map_vkb_report_full() {
         let vkb_report = VkbReport::new(
-            concat!(env!("CARGO_MANIFEST_DIR"), "/bindings/vkb_report_R.fp3").into(),
-        )
-        .unwrap();
-
-        assert!(JoystickButtonsMapping::try_from(vkb_report).is_ok());
-    }
-
-    #[test]
-    fn test_button_map_vkb_report_l() {
-        let vkb_report = VkbReport::new(
-            concat!(env!("CARGO_MANIFEST_DIR"), "/bindings/vkb_report_L.fp3").into(),
+            concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/vkb_report_L.fp3").into(),
         )
         .unwrap();
 

@@ -371,7 +371,7 @@ mod tests {
         parse_keybind(
             concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/bindings/layout_vkb_exported.xml"
+                "/tests/data/layout_vkb_exported.xml"
             )
             .into(),
             None,
