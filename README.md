@@ -40,9 +40,9 @@ TODO[page0]? support pagination? But is it really worth to preprocess to merge `
 
 ### Run
 
-`RUST_LOG=info cargo run -- --sc-mapping /home/pratn/workspace/sc-keymap-rs/sc-keymap-rs/bindings/layout_vkb_exported.xml --vkb-report-path /home/pratn/workspace/sc-keymap-rs/sc-keymap-rs/bindings/vkb_report_R.fp3 --vkb-user-provided-data-path /home/pratn/workspace/sc-keymap-rs/sc-keymap-rs/bindings/vkb_user_provided_data.csv --sc-bindings-to-ignore-path /home/pratn/workspace/sc-keymap-rs/sc-keymap-rs/bindings/sc_duplicates_to_ignore.csv --vkb-template-params-path /home/pratn/workspace/sc-keymap-rs/sc-keymap-rs/bindings/vkb_template_params_right.json`
+`RUST_LOG=info cargo run -- --sc-mapping ./bindings/layout_vkb_exported.xml --vkb-report-path ./bindings/vkb_report_R.fp3 --vkb-user-provided-data-path ./data/vkb_user_provided_data.csv --sc-bindings-to-ignore-path ./bindings/sc_duplicates_to_ignore.csv --vkb-template-params-path ./data/vkb_template_params_right.json`
 
-`RUST_LOG=info cargo run -- --sc-mapping /home/pratn/workspace/sc-keymap-rs/sc-keymap-rs/bindings/layout_vkb_exported.xml --vkb-report-path /home/pratn/workspace/sc-keymap-rs/sc-keymap-rs/bindings/vkb_report_L.fp3 --vkb-user-provided-data-path /home/pratn/workspace/sc-keymap-rs/sc-keymap-rs/bindings/vkb_user_provided_data.csv --sc-bindings-to-ignore-path /home/pratn/workspace/sc-keymap-rs/sc-keymap-rs/bindings/sc_duplicates_to_ignore.csv --vkb-template-params-path /home/pratn/workspace/sc-keymap-rs/sc-keymap-rs/bindings/vkb_template_params_left.json`
+`RUST_LOG=info cargo run -- --sc-mapping ./bindings/layout_vkb_exported.xml --vkb-report-path ./bindings/vkb_report_L.fp3 --vkb-user-provided-data-path ./data/vkb_user_provided_data.csv --sc-bindings-to-ignore-path ./bindings/sc_duplicates_to_ignore.csv --vkb-template-params-path ./data/vkb_template_params_left.json`
 
 ### Known Issues
 

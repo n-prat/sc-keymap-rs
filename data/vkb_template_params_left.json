@@ -1,0 +1,241 @@
+{
+  "path_to_full_png": "./data/EVO_L_omni_official.jpg",
+  "path_to_side_png": "./data/R_side_view.jpg",
+  "path_to_output_png": "./output_L.png",
+  "game_device_id": 1,
+  "buttons_params": [
+    {
+      "physical_names": [
+        "A1 8-way ministick N",
+        "A1 8-way ministick NE",
+        "A1 8-way ministick E",
+        "A1 8-way ministick SE",
+        "A1 8-way ministick S",
+        "A1 8-way ministick SW",
+        "A1 8-way ministick W",
+        "A1 8-way ministick NW"
+      ],
+      "user_desc": "MiniStick - 8 ways - top of stick",
+      "is_using_full_png_center_as_reference": true,
+      "desired_box_position_relative_to_center_full_png": [
+        900,
+        -875
+      ],
+      "connector_start_line_position_relative_to_center_full_png": [
+        -60,
+        -675
+      ],
+      "connector_end_line_position_relative_to_center_full_png": [
+        -175,
+        -750
+      ]
+    },
+    {
+      "physical_names": [
+        "(A4 up)",
+        "(A4 right)",
+        "(A4 down)",
+        "(A4 left)",
+        "(A4 push)"
+      ],
+      "user_desc": "4 ways stick - top of stick",
+      "is_using_full_png_center_as_reference": true,
+      "desired_box_position_relative_to_center_full_png": [
+        -1000,
+        -875
+      ],
+      "connector_start_line_position_relative_to_center_full_png": [
+        150,
+        -675
+      ],
+      "connector_end_line_position_relative_to_center_full_png": [
+        200,
+        -700
+      ]
+    },
+    {
+      "physical_names": [
+        "(A3 up)",
+        "(A3 right)",
+        "(A3 down)",
+        "(A3 left)",
+        "(A3 push)"
+      ],
+      "user_desc": "4 ways stick - next to red button",
+      "is_using_full_png_center_as_reference": true,
+      "desired_box_position_relative_to_center_full_png": [
+        500,
+        -500
+      ],
+      "connector_start_line_position_relative_to_center_full_png": [
+        50,
+        -600
+      ],
+      "connector_end_line_position_relative_to_center_full_png": [
+        500,
+        -400
+      ]
+    },
+    {
+      "physical_names": [
+        "(C1 forward)",
+        "(C1 right)",
+        "(C1 backward)",
+        "(C1 left)",
+        "(C1 push)"
+      ],
+      "user_desc": "4 ways stick - thumb",
+      "is_using_full_png_center_as_reference": true,
+      "desired_box_position_relative_to_center_full_png": [
+        -900,
+        -300
+      ],
+      "connector_start_line_position_relative_to_center_full_png": [
+        -60,
+        -300
+      ],
+      "connector_end_line_position_relative_to_center_full_png": [
+        -400,
+        -150
+      ]
+    },
+    {
+      "physical_names": [
+        "(A2)"
+      ],
+      "user_desc": "Thumb red button",
+      "is_using_full_png_center_as_reference": true,
+      "desired_box_position_relative_to_center_full_png": [
+        -600,
+        -500
+      ],
+      "connector_start_line_position_relative_to_center_full_png": [
+        -125,
+        -550
+      ],
+      "connector_end_line_position_relative_to_center_full_png": [
+        -250,
+        -500
+      ]
+    },
+    {
+      "physical_names": [
+        "(F2)",
+        "(F1)",
+        "(F3)"
+      ],
+      "user_desc": "F1/F2/F3 TEMPO buttons - base of stick",
+      "is_using_full_png_center_as_reference": true,
+      "desired_box_position_relative_to_center_full_png": [
+        -500,
+        200
+      ],
+      "connector_start_line_position_relative_to_center_full_png": [
+        50,
+        410
+      ],
+      "connector_end_line_position_relative_to_center_full_png": [
+        150,
+        300
+      ]
+    },
+    {
+      "physical_names": [
+        "(E1)"
+      ],
+      "user_desc": "Encoder wheel - base of stick",
+      "is_using_full_png_center_as_reference": true,
+      "desired_box_position_relative_to_center_full_png": [
+        400,
+        700
+      ],
+      "connector_start_line_position_relative_to_center_full_png": [
+        250,
+        600
+      ],
+      "connector_end_line_position_relative_to_center_full_png": [
+        350,
+        700
+      ]
+    },
+    {
+      "physical_names": [
+        "Sw1 Up (base of stick)",
+        "Sw1 Down (base of stick)"
+      ],
+      "user_desc": "Encoder wheel - base of stick",
+      "is_using_full_png_center_as_reference": true,
+      "desired_box_position_relative_to_center_full_png": [
+        -700,
+        700
+      ],
+      "connector_start_line_position_relative_to_center_full_png": [
+        -100,
+        600
+      ],
+      "connector_end_line_position_relative_to_center_full_png": [
+        -200,
+        700
+      ]
+    },
+    {
+      "physical_names": [
+        "(D1)"
+      ],
+      "user_desc": "Pinky button (bottom of stick)",
+      "is_using_full_png_center_as_reference": false,
+      "desired_box_position_relative_to_center_full_png": [
+        -500,
+        200
+      ],
+      "connector_start_line_position_relative_to_center_full_png": [
+        0,
+        150
+      ],
+      "connector_end_line_position_relative_to_center_full_png": [
+        -250,
+        200
+      ]
+    },
+    {
+      "physical_names": [
+        "(Fire 1-st stage)",
+        "(Fire 2-nd stage)"
+      ],
+      "user_desc": "Red Main Trigger",
+      "is_using_full_png_center_as_reference": false,
+      "desired_box_position_relative_to_center_full_png": [
+        -700,
+        -100
+      ],
+      "connector_start_line_position_relative_to_center_full_png": [
+        -150,
+        -150
+      ],
+      "connector_end_line_position_relative_to_center_full_png": [
+        -250,
+        -100
+      ]
+    },
+    {
+      "physical_names": [
+        "(Rapid fire press)",
+        "(Rapid fire forward)"
+      ],
+      "user_desc": "Red Main Trigger",
+      "is_using_full_png_center_as_reference": false,
+      "desired_box_position_relative_to_center_full_png": [
+        -900,
+        -400
+      ],
+      "connector_start_line_position_relative_to_center_full_png": [
+        -300,
+        -200
+      ],
+      "connector_end_line_position_relative_to_center_full_png": [
+        -400,
+        -250
+      ]
+    }
+  ]
+}

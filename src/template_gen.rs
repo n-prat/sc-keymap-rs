@@ -120,7 +120,7 @@ pub fn generate_template(
     let line_color = image::Rgba([0, 255, 0, 255]);
 
     // Load a system font (replace with the path to your TTF or OTF font file)
-    let font_data = include_bytes!("../bindings/BF_Modernista-Regular.ttf");
+    let font_data = include_bytes!("../data/BF_Modernista-Regular.ttf");
     let font = rusttype::Font::try_from_bytes(font_data)
         .ok_or_else(|| Error::Other("Failed to load font".to_string()))?;
 
