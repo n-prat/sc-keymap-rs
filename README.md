@@ -1,9 +1,47 @@
 #
 
-Small util allowing to print the Star Citizen joystick keybinds,
-directly updated by reading the exported `layout.xml`.
+Small utility to parse both Star Citizen keybindings, and VKB joysticks reports from VKBDevCfg and display the result as a printable png
 
-## Setup
+## VKB bindings export
+
+Use "save" not "export". You want a `.fp3` file which is machine-readable, the `export as pdf` function is not!
+
+**IMPORTANT** you MUST make sure the report is ONE page only; check "Page settings" button, and replace 29,7cm height by eg 300+cm
+
+TODO(page0)? support pagination? But is it really worth to preprocess to merge `b2` split on multiple pages and all the code that comes with it instead of exporting all on one page?
+
+## Run
+
+NOTE: left and right sticks are run separately
+
+For both (L and R) you need to provide e.g. `ls -l bindings/`:
+
+```
+'VKBsim Gladiator EVO  L   profile v9.cfg'
+'VKBsim Gladiator EVO  R   profile v9.cfg'
+layout_vkb_exported.xml
+sc_duplicates_to_ignore.csv
+vkb_report_L.fp3
+vkb_report_R.fp3
+```
+
+`RUST_LOG=info cargo run -- --sc-mapping ./bindings/layout_vkb_exported.xml --vkb-report-path ./bindings/vkb_report_R.fp3 --vkb-user-provided-data-path ./data/vkb_user_provided_data.csv --sc-bindings-to-ignore-path ./bindings/sc_duplicates_to_ignore.csv --vkb-template-params-path ./data/vkb_template_params_right.json`
+
+`RUST_LOG=info cargo run -- --sc-mapping ./bindings/layout_vkb_exported.xml --vkb-report-path ./bindings/vkb_report_L.fp3 --vkb-user-provided-data-path ./data/vkb_user_provided_data.csv --sc-bindings-to-ignore-path ./bindings/sc_duplicates_to_ignore.csv --vkb-template-params-path ./data/vkb_template_params_left.json`
+
+## Known Issues
+
+### Missing text
+
+If no text is rendered:
+
+- download and decompress from eg https://github.com/RazrFalcon/resvg/releases
+- `./resvg --list-fonts path_to_a.svg aaa.png`
+  - It should display a bunch of errors like `Warning (in usvg_text_layout:658): No match for 'Times New Roman' font-famiy.`
+  - It should also display a bunch of info at the start like `/usr/share/fonts/gnu-free/FreeSerifBold.otf: 'FreeSerif (English, United States)', 0, Normal, 700, Normal`
+  - use eg `FreeSerif` as font-family option `resvg::usvg::Options.font_family`
+
+## [ARCHIVE] Setup
 
 ~~- an editable `pdf` (ie a form)~~
   ~~- MUST have all the required text forms with the correct labels~~
@@ -29,42 +67,3 @@ Yes `svg` has cloning, but a clone is a single element.
 ie if a clone a "4 way hats" with contains 4 separate IDs/labels matching the keybinds -> we end up we a single `use`
 which means we CAN NOT bind it properly.
 Possibly could be done with Illustrator("Dynamic Symbols") but not Open Source nor Free...
-
-### VKB bindings export
-
-Use "save" not "export". You want a `.fp3` file which is machine readable, the `export as pdf` function is not!
-
-**IMPORTANT** you MUST make sure the report is ONE page only; check "Page settings" button, and replace 29,7cm height by eg 300+cm
-
-TODO[page0]? support pagination? But is it really worth to preprocess to merge `b2` split on multiple pages and all the code that comes with it instead of exporting all on one page?
-
-### Run
-
-NOTE: left and right sticks are run separately
-
-For both (L and R) you need to provide e.g. `ls -l bindings/`:
-
-```
-'VKBsim Gladiator EVO  L   profile v9.cfg'
-'VKBsim Gladiator EVO  R   profile v9.cfg'
-layout_vkb_exported.xml
-sc_duplicates_to_ignore.csv
-vkb_report_L.fp3
-vkb_report_R.fp3
-```
-
-`RUST_LOG=info cargo run -- --sc-mapping ./bindings/layout_vkb_exported.xml --vkb-report-path ./bindings/vkb_report_R.fp3 --vkb-user-provided-data-path ./data/vkb_user_provided_data.csv --sc-bindings-to-ignore-path ./bindings/sc_duplicates_to_ignore.csv --vkb-template-params-path ./data/vkb_template_params_right.json`
-
-`RUST_LOG=info cargo run -- --sc-mapping ./bindings/layout_vkb_exported.xml --vkb-report-path ./bindings/vkb_report_L.fp3 --vkb-user-provided-data-path ./data/vkb_user_provided_data.csv --sc-bindings-to-ignore-path ./bindings/sc_duplicates_to_ignore.csv --vkb-template-params-path ./data/vkb_template_params_left.json`
-
-### Known Issues
-
-#### Missing text
-
-If no text is rendered:
-
-- download and decompress from eg https://github.com/RazrFalcon/resvg/releases
-- `./resvg --list-fonts path_to_a.svg aaa.png`
-  - It should display a bunch of errors like `Warning (in usvg_text_layout:658): No match for 'Times New Roman' font-famiy.`
-  - It should also display a bunch of info at the start like `/usr/share/fonts/gnu-free/FreeSerifBold.otf: 'FreeSerif (English, United States)', 0, Normal, 700, Normal`
-  - use eg `FreeSerif` as font-family option `resvg::usvg::Options.font_family`
