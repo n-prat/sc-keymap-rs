@@ -1,0 +1,60 @@
+name: Build and Test
+
+on:
+    push:
+        # branches: [ master ]
+#     pull_request:
+#         branches: [ master ]
+
+env:
+    CARGO_TERM_COLOR: always
+    # https://github.com/Mozilla-Actions/sccache-action?tab=readme-ov-file#rust-code
+    SCCACHE_GHA_ENABLED: "true"
+    RUSTC_WRAPPER: "sccache"
+
+permissions:
+    checks: write
+    contents: read
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        steps:
+        - uses: actions/checkout@v4
+
+        -   name: Run sccache-cache
+            uses: mozilla-actions/sccache-action@v0.0.3
+
+        - name: Setup Rust
+          uses: actions-rs/toolchain@v1
+          with:
+            toolchain: stable
+            components: rustfmt,clippy
+            override: true
+
+        -   name: Run tests
+            run: cargo test
+
+        -   name: Run sccache stat for check
+            shell: bash
+            run: ${SCCACHE_PATH} --show-stats
+
+    lint:
+        runs-on: ubuntu-latest
+        steps:
+        - uses: actions/checkout@v4
+
+        -   name: Run sccache-cache
+            uses: mozilla-actions/sccache-action@v0.0.3
+
+        -   name: Setup Rust
+            uses: actions-rs/toolchain@v1
+            with:
+                toolchain: stable
+                components: rustfmt,clippy
+                override: true
+
+        -   uses: actions-rs/clippy-check@v1
+            with:
+                token: ${{ secrets.GITHUB_TOKEN }}
+                args: --all-features -- -D warnings
