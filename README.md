@@ -40,6 +40,19 @@ TODO[page0]? support pagination? But is it really worth to preprocess to merge `
 
 ### Run
 
+NOTE: left and right sticks are run separately
+
+For both (L and R) you need to provide e.g. `ls -l bindings/`:
+
+```
+'VKBsim Gladiator EVO  L   profile v9.cfg'
+'VKBsim Gladiator EVO  R   profile v9.cfg'
+layout_vkb_exported.xml
+sc_duplicates_to_ignore.csv
+vkb_report_L.fp3
+vkb_report_R.fp3
+```
+
 `RUST_LOG=info cargo run -- --sc-mapping ./bindings/layout_vkb_exported.xml --vkb-report-path ./bindings/vkb_report_R.fp3 --vkb-user-provided-data-path ./data/vkb_user_provided_data.csv --sc-bindings-to-ignore-path ./bindings/sc_duplicates_to_ignore.csv --vkb-template-params-path ./data/vkb_template_params_right.json`
 
 `RUST_LOG=info cargo run -- --sc-mapping ./bindings/layout_vkb_exported.xml --vkb-report-path ./bindings/vkb_report_L.fp3 --vkb-user-provided-data-path ./data/vkb_user_provided_data.csv --sc-bindings-to-ignore-path ./bindings/sc_duplicates_to_ignore.csv --vkb-template-params-path ./data/vkb_template_params_left.json`
