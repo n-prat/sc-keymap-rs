@@ -10,6 +10,9 @@ use crate::Error;
 
 /// Combine a game keybinds mapping and a physical joystick configuration and generates a .png
 ///
+/// params:
+/// - `game_device_id`: usually "1" or "2"; For Star Citizen, it is e.g. "options type="joystick" instance=" in the exported xml
+///
 /// # Errors
 /// - the various files could not be read
 /// - the positions/sizes/etc in `vkb_template_params.json` are not correct
@@ -25,6 +28,7 @@ pub fn generate_template(
     game_buttons_mapping: &parse_keybind_xml::GameButtonsMapping,
     joysticks_mappings: &JoystickButtonsMapping,
     json_template_params_path: &PathBuf,
+    game_device_id: u8,
 ) -> Result<(), Error> {
     const WIDTH: u32 = 4000;
     const HEIGHT: u32 = 2000;
@@ -163,7 +167,7 @@ pub fn generate_template(
 
                         match game_buttons_mapping.get_action_from_virtual_button_id(
                             *virtual_button.get_id(),
-                            json_params.game_device_id,
+                            game_device_id,
                         ) {
                             Some(act_names) => {
                                 action_name_with_modifier.push_str(&act_names.join("\n"));
@@ -571,8 +575,6 @@ struct TemplateJsonParamaters {
     path_to_full_png: PathBuf,
     path_to_side_png: PathBuf,
     path_to_output_png: PathBuf,
-    /// usually "1" or "2"
-    game_device_id: u8,
     buttons_params: Vec<TemplateJsonButtonOrStickParameters>,
 }
 

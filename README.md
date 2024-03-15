@@ -25,9 +25,9 @@ vkb_report_L.fp3
 vkb_report_R.fp3
 ```
 
-`RUST_LOG=info cargo run -- --sc-mapping ./bindings/layout_vkb_exported.xml --vkb-report-path ./bindings/vkb_report_R.fp3 --vkb-user-provided-data-path ./data/vkb_user_provided_data.csv --sc-bindings-to-ignore-path ./bindings/sc_duplicates_to_ignore.csv --vkb-template-params-path ./data/vkb_template_params_right.json`
+`RUST_LOG=info cargo run -- --sc-mapping ./bindings/layout_vkb_exported.xml --vkb-report-path ./bindings/vkb_report_R.fp3 --vkb-user-provided-data-path ./data/vkb_user_provided_data.csv --sc-bindings-to-ignore-path ./bindings/sc_duplicates_to_ignore.csv --vkb-template-params-path ./data/vkb_template_params_right.json --game-device-id 1`
 
-`RUST_LOG=info cargo run -- --sc-mapping ./bindings/layout_vkb_exported.xml --vkb-report-path ./bindings/vkb_report_L.fp3 --vkb-user-provided-data-path ./data/vkb_user_provided_data.csv --sc-bindings-to-ignore-path ./bindings/sc_duplicates_to_ignore.csv --vkb-template-params-path ./data/vkb_template_params_left.json`
+`RUST_LOG=info cargo run -- --sc-mapping ./bindings/layout_vkb_exported.xml --vkb-report-path ./bindings/vkb_report_L.fp3 --vkb-user-provided-data-path ./data/vkb_user_provided_data.csv --sc-bindings-to-ignore-path ./bindings/sc_duplicates_to_ignore.csv --vkb-template-params-path ./data/vkb_template_params_left.json --game-device-id 2`
 
 ## Known Issues
 
