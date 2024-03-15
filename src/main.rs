@@ -56,6 +56,11 @@ pub struct Args {
     #[clap(long)]
     pub vkb_template_params_path: Option<PathBuf>,
 
+    /// usually "1" or "2"; For Star Citizen, it is e.g. "options type="joystick" instance=" in the exported xml
+    /// It is an CLI arg b/c it can change when rebooting the computer, replugging, etc
+    #[clap(long)]
+    pub game_device_id: Option<u8>,
+
     /// Optional pretty print output.
     #[clap(short, long)]
     pub pretty: bool,
@@ -113,19 +118,24 @@ fn main() -> Result<(), Error> {
     // We have the ONE game mappings, and the many devices mappings
     //
 
-    match (game_buttons_mapping, joysticks_mappings) {
-        (Some(game_buttons_mapping), Some(joysticks_mappings)) => {
+    match (
+        game_buttons_mapping,
+        joysticks_mappings,
+        args.game_device_id,
+    ) {
+        (Some(game_buttons_mapping), Some(joysticks_mappings), Some(game_device_id)) => {
             sc_keymap_rs::generate_template(
                 &game_buttons_mapping,
                 &joysticks_mappings,
                 &args
                     .vkb_template_params_path
                     .expect("missing --vkb-template-params-path"),
+                game_device_id,
             )?;
         }
         _ => {
             // missing stuff; nothing to do
-            println!("SKIP : missing game and/or devices mappings and/or arg --vkb-template-path; nothing to do...");
+            println!("SKIP : missing game and/or devices mappings and/or arg --vkb-template-path and/or --game-device-id ; nothing to do...");
         }
     }
 

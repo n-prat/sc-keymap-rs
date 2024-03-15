@@ -2,7 +2,6 @@
   "path_to_full_png": "./data/EVO_L_omni_official.jpg",
   "path_to_side_png": "./data/R_side_view.jpg",
   "path_to_output_png": "./output_L.png",
-  "game_device_id": 1,
   "buttons_params": [
     {
       "physical_names": [
