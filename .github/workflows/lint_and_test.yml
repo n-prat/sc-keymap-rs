@@ -20,41 +20,55 @@ jobs:
     test:
         runs-on: ubuntu-latest
         steps:
-        - uses: actions/checkout@v4
+            - uses: actions/checkout@v4
 
-        -   name: Run sccache-cache
-            uses: mozilla-actions/sccache-action@v0.0.3
+            # Rust: setup with sccache and action cache
+            - name: Run sccache-cache
+              uses: mozilla-actions/sccache-action@v0.0.3
+            - name: Setup Rust
+              uses: actions-rs/toolchain@v1
+              with:
+                  toolchain: stable
+                  components: rustfmt,clippy
+                  override: true
+            - name: Cache cargo registry and git trees
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.cargo/registry
+                      ~/.cargo/git
+                  key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-        - name: Setup Rust
-          uses: actions-rs/toolchain@v1
-          with:
-            toolchain: stable
-            components: rustfmt,clippy
-            override: true
+            - name: Run tests
+              run: cargo test
 
-        -   name: Run tests
-            run: cargo test
-
-        -   name: Run sccache stat for check
-            shell: bash
-            run: ${SCCACHE_PATH} --show-stats
+            - name: Run sccache stat for check
+              shell: bash
+              run: ${SCCACHE_PATH} --show-stats
 
     lint:
         runs-on: ubuntu-latest
         steps:
-        - uses: actions/checkout@v4
+            - uses: actions/checkout@v4
 
-        -   name: Run sccache-cache
-            uses: mozilla-actions/sccache-action@v0.0.3
+            # Rust: setup with sccache and action cache
+            - name: Run sccache-cache
+              uses: mozilla-actions/sccache-action@v0.0.3
+            - name: Setup Rust
+              uses: actions-rs/toolchain@v1
+              with:
+                  toolchain: stable
+                  components: rustfmt,clippy
+                  override: true
+            - name: Cache cargo registry and git trees
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.cargo/registry
+                      ~/.cargo/git
+                  key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-        -   name: Setup Rust
-            uses: actions-rs/toolchain@v1
-            with:
-                toolchain: stable
-                components: rustfmt,clippy
-                override: true
-
-        -   uses: actions-rs/clippy-check@v1
-            with:
-                token: ${{ secrets.GITHUB_TOKEN }}
-                args: --all-features -- -D warnings
+            - uses: actions-rs/clippy-check@v1
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  args: --all-features -- -D warnings
