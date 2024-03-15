@@ -14,6 +14,7 @@ use std::num::{ParseIntError, TryFromIntError};
 use thiserror::Error;
 
 mod button;
+mod html_gen;
 mod sc;
 mod template_gen;
 mod vkb;
@@ -47,6 +48,7 @@ pub enum Error {
 }
 
 /// Re-export
+pub use html_gen::generate_html;
 pub use sc::parse_keybind_xml::parse_keybind as sc_parse_keybind;
 pub use template_gen::generate_template;
 pub use vkb::parse_and_check_vkb_both_sticks as vkb_parse_and_check_both_sticks;

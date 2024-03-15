@@ -29,6 +29,16 @@ vkb_report_R.fp3
 
 `RUST_LOG=info cargo run -- --sc-mapping ./bindings/layout_vkb_exported.xml --vkb-report-path ./bindings/vkb_report_L.fp3 --vkb-user-provided-data-path ./data/vkb_user_provided_data.csv --sc-bindings-to-ignore-path ./bindings/sc_duplicates_to_ignore.csv --vkb-template-params-path ./data/vkb_template_params_left.json --game-device-id 2`
 
+## Dev
+
+### HTML
+
+You MUST serve the file with a proper HTTP server b/c VSCode's preview does NOT handle images...
+
+- `cargo install simple-http-server`
+- `simple-http-server . -p 8080`
+- open e.g. http://127.0.0.1:8080/output_R.html with your browser
+
 ## Known Issues
 
 ### Missing text

@@ -1,0 +1,51 @@
+<!DOCTYPE html><html><head><title>Joystick Template</title><style>
+                    body {
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        height: 1500px;
+                    }
+                    #searchBox {
+                        position: absolute;
+                        top: 100px;
+                        left: 100px;
+                        z-index: 3;
+                    }
+                    #image-joystick-main {
+                        // position: absolute;
+                        // top: 200;
+                        // left: 500;
+                        width: 1200px;
+                        height: 1200px;
+                        position: absolute;
+                        top: 400px;
+                        left: 800px;
+                        z-index: 1;
+                    }
+                    #image-joystick-small  {
+                        // position: absolute;
+                        // top: 0;
+                        // left: 0;
+                        width: 800px;
+                        height: 800px;
+                        position: absolute;
+                        z-index: 2;
+                        top: 800px;
+                        left: 50px;
+                    }
+                    </style></head><body><input type="text" id="searchBox" onkeyup="searchFunction()" placeholder="Search for buttons.."><div class="image-container"><img id="image-joystick-small" src="./data/R_side_view.jpg"><img id="image-joystick-main" src="./data/EVO_R_official.jpg"></div><script>
+                    function searchFunction() {
+                      var input, filter, divs, i, txtValue;
+                      input = document.getElementById('searchBox');
+                      filter = input.value.toUpperCase();
+                      divs = document.getElementsByTagName('div');
+                      for (i = 0; i < divs.length; i++) {
+                        txtValue = divs[i].textContent || divs[i].innerText;
+                        if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                          divs[i].style.display = "";
+                        } else {
+                          divs[i].style.display = "none";
+                        }
+                      }
+                    }
+                    </script></body></html>

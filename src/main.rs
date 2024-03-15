@@ -1,5 +1,5 @@
 use clap::Parser;
-use sc_keymap_rs::Error;
+use sc_keymap_rs::{generate_html, Error};
 use std::path::PathBuf;
 
 /// https://github.com/J-F-Liu/lopdf/blob/master/examples/extract_toc.rs
@@ -124,7 +124,17 @@ fn main() -> Result<(), Error> {
         args.game_device_id,
     ) {
         (Some(game_buttons_mapping), Some(joysticks_mappings), Some(game_device_id)) => {
-            sc_keymap_rs::generate_template(
+            // TODO add arg and handle HTML gen separately
+            // sc_keymap_rs::generate_template(
+            //     &game_buttons_mapping,
+            //     &joysticks_mappings,
+            //     &args
+            //         .vkb_template_params_path
+            //         .as_ref()
+            //         .expect("missing --vkb-template-params-path"),
+            //     game_device_id,
+            // )?;
+            generate_html(
                 &game_buttons_mapping,
                 &joysticks_mappings,
                 &args

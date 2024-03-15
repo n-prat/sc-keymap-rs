@@ -41,22 +41,7 @@ pub fn generate_template(
     const PADDING_H: i32 = 10;
     const PADDING_V: i32 = 10;
 
-    ////////////////////////////////////////////////////////////////////////////
-    // Parse the "vkb_template_params.json"
-    // and check eveything is OK: paths, etc
-    let json_params: TemplateJsonParamaters = serde_json::from_reader(std::io::BufReader::new(
-        std::fs::File::open(json_template_params_path.clone()).map_err(|_err| {
-            Error::Other(format!(
-                "failed to open json_template_params_path {json_template_params_path:?}"
-            ))
-        })?,
-    ))
-    .map_err(|_err| {
-        Error::Other(format!(
-            "serde_json error for {json_template_params_path:?}"
-        ))
-    })?;
-    log::debug!("json_params : {json_params:?}");
+    let json_params = read_json_template(json_template_params_path)?;
 
     ////////////////////////////////////////////////////////////////////////////
     let image_full_front = image::open(json_params.path_to_full_png.clone()).map_err(|_err| {
@@ -257,6 +242,21 @@ pub fn generate_template(
         })?;
 
     Ok(())
+}
+
+pub(crate) fn read_json_template(
+    json_template_path: &PathBuf,
+) -> Result<TemplateJsonParamaters, Error> {
+    let json_params: TemplateJsonParamaters = serde_json::from_reader(std::io::BufReader::new(
+        std::fs::File::open(json_template_path.clone()).map_err(|_err| {
+            Error::Other(format!(
+                "failed to open json_template_params_path {json_template_path:?}"
+            ))
+        })?,
+    ))
+    .map_err(|_err| Error::Other(format!("serde_json error for {json_template_path:?}")))?;
+    log::debug!("json_params : {json_params:?}");
+    Ok(json_params)
 }
 
 #[derive(Debug, Clone)]
@@ -571,11 +571,11 @@ fn draw_boxes(
 /// NOTE: this is for one joystick, either L or right
 /// (at least for now)
 #[derive(Serialize, Deserialize, Debug)]
-struct TemplateJsonParamaters {
-    path_to_full_png: PathBuf,
-    path_to_side_png: PathBuf,
-    path_to_output_png: PathBuf,
-    buttons_params: Vec<TemplateJsonButtonOrStickParameters>,
+pub(crate) struct TemplateJsonParamaters {
+    pub(crate) path_to_full_png: PathBuf,
+    pub(crate) path_to_side_png: PathBuf,
+    pub(crate) path_to_output_png: PathBuf,
+    pub(crate) buttons_params: Vec<TemplateJsonButtonOrStickParameters>,
 }
 
 /// This is how/where a button/stick will be drawn in the final composite image
