@@ -41,7 +41,7 @@
       "is_using_full_png_center_as_reference": true,
       "desired_box_position_relative_to_center_full_png": [
         725,
-        -875
+        -900
       ],
       "connector_start_line_position_relative_to_center_full_png": [
         150,
@@ -63,16 +63,16 @@
       "user_desc": "4 ways stick - next to red button",
       "is_using_full_png_center_as_reference": true,
       "desired_box_position_relative_to_center_full_png": [
-        500,
-        -500
+        625,
+        -325
       ],
       "connector_start_line_position_relative_to_center_full_png": [
         50,
         -600
       ],
       "connector_end_line_position_relative_to_center_full_png": [
-        500,
-        -400
+        600,
+        -220
       ]
     },
     {
@@ -234,6 +234,25 @@
       "connector_end_line_position_relative_to_center_full_png": [
         -400,
         -250
+      ]
+    },
+    {
+      "physical_names": [
+        "(B1)"
+      ],
+      "user_desc": "Index button, white, top back of stick",
+      "is_using_full_png_center_as_reference": false,
+      "desired_box_position_relative_to_center_full_png": [
+        1700,
+        -800
+      ],
+      "connector_start_line_position_relative_to_center_full_png": [
+        1550,
+        -900
+      ],
+      "connector_end_line_position_relative_to_center_full_png": [
+        1700,
+        -800
       ]
     }
   ]
