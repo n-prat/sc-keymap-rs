@@ -18,15 +18,15 @@
       "is_using_full_png_center_as_reference": true,
       "desired_box_position_relative_to_center_full_png": [
         900,
-        -875
+        -900
       ],
       "connector_start_line_position_relative_to_center_full_png": [
-        -60,
-        -675
+        450,
+        -525
       ],
       "connector_end_line_position_relative_to_center_full_png": [
-        -175,
-        -750
+        850,
+        -550
       ]
     },
     {
@@ -44,11 +44,11 @@
         -875
       ],
       "connector_start_line_position_relative_to_center_full_png": [
-        150,
+        300,
         -675
       ],
       "connector_end_line_position_relative_to_center_full_png": [
-        200,
+        0,
         -700
       ]
     },
@@ -63,15 +63,15 @@
       "user_desc": "4 ways stick - next to red button",
       "is_using_full_png_center_as_reference": true,
       "desired_box_position_relative_to_center_full_png": [
-        500,
+        900,
         -500
       ],
       "connector_start_line_position_relative_to_center_full_png": [
-        50,
-        -600
+        300,
+        -525
       ],
       "connector_end_line_position_relative_to_center_full_png": [
-        500,
+        900,
         -400
       ]
     },
@@ -90,8 +90,8 @@
         -300
       ],
       "connector_start_line_position_relative_to_center_full_png": [
-        -60,
-        -300
+        100,
+        -230
       ],
       "connector_end_line_position_relative_to_center_full_png": [
         -400,
@@ -105,16 +105,16 @@
       "user_desc": "Thumb red button",
       "is_using_full_png_center_as_reference": true,
       "desired_box_position_relative_to_center_full_png": [
-        -600,
-        -500
+        250,
+        -200
       ],
       "connector_start_line_position_relative_to_center_full_png": [
-        -125,
-        -550
+        340,
+        -400
       ],
       "connector_end_line_position_relative_to_center_full_png": [
-        -250,
-        -500
+        400,
+        -200
       ]
     },
     {
@@ -149,7 +149,7 @@
         700
       ],
       "connector_start_line_position_relative_to_center_full_png": [
-        250,
+        200,
         600
       ],
       "connector_end_line_position_relative_to_center_full_png": [
@@ -169,7 +169,7 @@
         700
       ],
       "connector_start_line_position_relative_to_center_full_png": [
-        -100,
+        -150,
         600
       ],
       "connector_end_line_position_relative_to_center_full_png": [
@@ -224,16 +224,35 @@
       "user_desc": "Red Main Trigger",
       "is_using_full_png_center_as_reference": false,
       "desired_box_position_relative_to_center_full_png": [
-        -900,
+        -800,
         -400
       ],
       "connector_start_line_position_relative_to_center_full_png": [
-        -300,
+        -275,
         -200
       ],
       "connector_end_line_position_relative_to_center_full_png": [
-        -400,
+        -300,
         -250
+      ]
+    },
+    {
+      "physical_names": [
+        "(B1)"
+      ],
+      "user_desc": "Index button, white, top back of stick",
+      "is_using_full_png_center_as_reference": false,
+      "desired_box_position_relative_to_center_full_png": [
+        700,
+        -800
+      ],
+      "connector_start_line_position_relative_to_center_full_png": [
+        1450,
+        -950
+      ],
+      "connector_end_line_position_relative_to_center_full_png": [
+        1100,
+        -805
       ]
     }
   ]
